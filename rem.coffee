@@ -11,7 +11,7 @@ A library that simplifies and normalizes access to REST APIs.
 querystring = require 'querystring'
 https = require 'https'
 http = require 'http'
-OAuth = require("oauth").OAuth
+{OAuth, OAuth2} = require("oauth")
 util = require 'util'
 url = require 'url'
 fs = require 'fs'
@@ -25,10 +25,16 @@ iterateJSON = (obj, level, fn) ->
 			iterateJSON(x, level.concat([k]), fn) for k, x of obj
 	return
 
+safeJSONStringify = (s) ->
+	JSON.stringify(s).replace /[\u007f-\uffff]/g, (c) -> "\\u" + ("0000" + c.charCodeAt(0).toString(16)).slice(-4)
+
+OAuth2::post = (url, accessToken, body, mime, cb) ->
+	@_request "POST", url, {"Content-Type": mime}, body, accessToken, cb
+
 # REM Classes
 # -----------
 
-manifests = JSON.parse fs.readFileSync 'rem-manifest.json'
+manifests = JSON.parse fs.readFileSync __dirname + '/rem-manifest.json'
 
 class REMAction
 	constructor: (@res, @text, fn) ->
@@ -41,7 +47,7 @@ class REMAction
 			if @statusCode >= 400 then fn(@statusCode, this)
 			else fn(0, this)
 		catch e
-			fn(e, null)
+			fn(e, this)
 	
 	parseRate: ->
 		@rate =
@@ -74,52 +80,65 @@ class REM
 			@filters.push (endpoint) => endpoint.pathname = @manifest.basepath + endpoint.pathname
 		if @manifest.suffix?
 			@filters.push (endpoint) => endpoint.pathname += @manifest.suffix
-		if @manifest.withKey?
-			switch @manifest.withKey.type
-				when 'query'
-					@filters.push (endpoint) => endpoint.query[@manifest.withKey.name] = @key
+		if @manifest.keyAsParam?
+			@filters.push (endpoint) => endpoint.query[@manifest.keyAsParam] = @key
 		if @manifest.params?
 			@filters.push (endpoint) =>
 				for qk, qv of @manifest.params then endpoint.query[qk] = qv
 
 	_request: (method, path, query, mime, body, fn) ->
+		# Normalize path.
+		if path[0] != '/'
+			path = '/' + path
 		# Determine host.
-		if typeof @manifest.host == 'string'
-			host = @manifest.host
+		if typeof @manifest.base == 'string'
+			base = @manifest.base
 		else
-			host = ''
-			for pat in @manifest.host
+			base = ''
+			for pat in @manifest.base
 				if typeof pat == 'string'
-					host = pat
+					base = pat
 					break
 				if path.match new RegExp(pat[0])
-					host = pat[1]
+					base = pat[1]
 					break
 
 		# Construct endpoint path.
-		endpoint = 
-			host: host
-			protocol: @manifest.protocols[0]
-			pathname: path
-			query: query or {}
+		endpoint = url.parse base + path
+		endpoint.query = {}
+		for qk, qv of query
+			endpoint.query[qk] = qv
 		for filter in @filters
 			filter endpoint
 		# Normalize endpoint.
 		endpointUrl = url.format endpoint
 		endpoint = url.parse endpointUrl
 
-		# Oauth request.
+		# OAuth request.
 		if @oauth
+			args = if @manifest.oauth.version != '2.0' then [@oauthToken, @oauthTokenSecret] else [@oauthToken]
 			if method in ['put', 'post']
-				@oauth[method] endpointUrl, @oauthToken, @oauthTokenSecret, body, mime, fn
+				payload = [body, mime]
+				# Signatures need to be calculated from forms
+				if mime == 'application/x-www-form-urlencoded'
+					payload = [querystring.parse body]
+				@oauth[method] endpointUrl, args..., payload..., fn
 			else
-				@oauth[method] endpointUrl, @oauthToken, @oauthTokenSecret, fn
+				@oauth[method] endpointUrl, args..., fn
+
 		# Standard HTTP request.
 		else
-			req = (if @manifest.protocols[0] == 'https' then https else http).request host: endpoint.host, path: endpoint.path, method: method
+			req = (if endpoint.protocol == 'https:' then https else http).request host: endpoint.host, path: endpoint.path, method: method
 			req.on 'response', (res) =>
+				if res.statusCode in [301, 302, 303] and res.headers['location']
+					try
+						path = url.parse(res.headers['location'])?.pathname
+						#@_request method, path, query, mime, body, fn
+					catch e
+					return
+
 				text = ''
-				unless res.headers['content-type'] or @res.headers['content-length'] then fn 0, text, res
+				unless res.headers['content-type'] or res.headers['content-length'] then fn 0, text, res
 				res.on 'data', (d) => text += d
 				res.on 'end', => fn 0, text, res
 
@@ -127,19 +146,28 @@ class REM
 			req.setHeader 'Content-Type', mime if mime?
 			req.end()
 
-	get: (path, query, fn) ->
+	get: (path, [query]..., fn) ->
+		query ?= {}
 		req = @_request 'get', path, query, null, null, (err, data, res) ->
 			new REMAction res, data, fn
 
-	post: (path, query, data, fn) ->
-		req = @_request 'post', path, query, 'application/json', safeJSONStringify(data), (err, data, res) ->
+	post: (path, [query]..., data, fn) ->
+		query ?= {}
+		if @manifest.postType == 'form'
+			payload = ['application/x-www-form-urlencoded', querystring.stringify(data)]
+		else
+			payload = ['application/json', safeJSONStringify(data)]
+
+		req = @_request 'post', path, query, payload..., (err, data, res) ->
 			new REMAction res, data, fn
 
-	put: (path, query, mime, data, fn) ->
+	put: (path, [query]..., mime, data, fn) ->
+		query ?= {}
 		req = @_request 'put', path, query, mime, data, (err, data, res) ->
 			new REMAction res, data, fn
 
-	delete: (path, query, fn) ->
+	delete: (path, [query]..., fn) ->
+		query ?= {}
 		req = @_request 'delete', path, query, (err, data, res) ->
 			new REMAction res, data, fn
 
@@ -148,19 +176,43 @@ class REM
 
 	oauth: null
 
-	performOAuth: (authcb, finalcb) ->
-		cburl = @manifest.oauth.emptyCallback or `undefined`
-		@oauth = new OAuth @manifest.oauth.requestEndpoint, @manifest.oauth.accessEndpoint,
-			@key, @secret, @manifest.oauth.version or '1.0', cburl, "HMAC-SHA1"
-		@oauth.getOAuthRequestToken (@manifest.oauth.props or {}), (err, oauthToken, oauthTokenSecret, results) =>
+	# OAuth2
+	oauthRedirectUri: null
+	oauthToken: null
+	oauthTokenSecret: null
+
+	startOAuthCallback: (@oauthRedirectUri, cb) ->
+		if @manifest.oauth.version != '2.0'
+			@oauth = new OAuth @manifest.oauth.requestEndpoint, @manifest.oauth.accessEndpoint,
+				@key, @secret, @manifest.oauth.version or '1.0', @oauthRedirectUri, "HMAC-SHA1"
+			@oauth.getOAuthRequestToken (@manifest.oauth.props or {}), (err, @oauthToken, @oauthTokenSecret, results) =>
+				if err
+					console.log "Error requesting OAuth token: " + JSON.stringify(err)
+				else
+					cb "#{@manifest.oauth.authorizeEndpoint}?oauth_token=#{oauthToken}", results
+
+		else
+			@oauth = new OAuth2 @key, @secret, @manifest.oauth.base
+			cb @oauth.getAuthorizeUrl(redirect_uri: @oauthRedirectUri, scope: "email,read_stream,publish_stream", display: "page")
+
+	startOAuth: (cb) -> @startOAuthCallback @manifest.oauth.emptyCallback or `undefined`, cb
+
+	completeOAuthCallback: (originalUrl, cb) ->
+		if @manifest.oauth.version != '2.0'
+
+		else
+			parsedUrl = url.parse originalUrl, yes
+			@oauth.getOAuthAccessToken parsedUrl.query?.code, redirect_uri: @oauthRedirectUri, (err, @oauthToken, @oauthRefreshToken) =>
+				if err
+					console.log 'Error authorizing OAuth2 endpoint:', JSON.stringify err
+				else
+					cb()
+
+	completeOAuth: ([verifier]..., cb) ->
+		@oauth.getOAuthAccessToken @oauthToken, @oauthTokenSecret, verifier, (err, @oauthToken, @oauthTokenSecret, results) =>
 			if err
-				console.log "Error requesting OAuth token: " + JSON.stringify(err)
+				console.log "Error authorizing OAuth endpoint: " + JSON.stringify(err)
 			else
-				authcb "#{@manifest.oauth.authorizeEndpoint}?oauth_token=#{oauthToken}", results, (data) =>
-					@oauth.getOAuthAccessToken oauthToken, oauthTokenSecret, data, (err, @oauthToken, @oauthTokenSecret, results) =>
-						if err
-							console.log "Error authorizing OAuth endpoint: " + JSON.stringify(err)
-						else
-							finalcb results
+				cb results
 
 module.exports = REM

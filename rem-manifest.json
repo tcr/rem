@@ -1,14 +1,13 @@
 {
   "google-calendar": {
     "2": {
-      "protocols": ["http"],
-      "host": "www.google.com",
-      "basepath": "/calendar/feeds",
+      "base": "https://www.google.com/calendar/feeds",
       "params": {
         "v": "2",
         "alt": "jsonc"
       },
-      "auth": ["oauth-with-token"],
+
+      "auth": ["oauth-callback", "oauth-verified"],
       "oauth": {
         "requestEndpoint": "https://www.google.com/accounts/OAuthGetRequestToken",
         "accessEndpoint": "https://www.google.com/accounts/OAuthGetAccessToken",
@@ -23,22 +22,19 @@
 
   "youtube": {
     "2": {
-      "protocols": ["https"],
-      "host": "gdata.youtube.com",
-      "basepath": "/feeds/api",
+      "base": "https://gdata.youtube.com/feeds/api",
       "params": {
         "v": "2",
         "alt": "jsonc"
       },
-      "withKey": {
-        "type": "query",
-        "name": "key"
-      },
+      "keyAsParam": "key",
+
       "auth": ["oauth-callback"],
       "oauth": {
         "requestEndpoint": "https://www.google.com/accounts/OAuthGetRequestToken",
         "accessEndpoint": "https://www.google.com/accounts/OAuthGetAccessToken",
         "authorizeEndpoint": "http://www.youtube.com/oauth_authorize_token",
+        "emptyCallback": "oob",
         "version": "1.0",
         "props": {
           "scope": "http://gdata.youtube.com"
@@ -49,10 +45,12 @@
 
   "dropbox": {
     "1": {
-      "protocols": ["https", "http"],
-      "host": [["^/(files(_put)?|thumbnails)/.*", "api-content.dropbox.com"], "api.dropbox.com"],
-      "basepath": "/1",
-      "auth": ["oauth-without-token", "oauth-callback"],
+      "base": [
+        ["^/(files(_put)?|thumbnails)/.*", "https://api-content.dropbox.com/1"],
+        "https://api.dropbox.com/1"
+      ],
+
+      "auth": ["oauth-unverified", "oauth-callback"],
       "oauth": {
         "requestEndpoint": "https://api.dropbox.com/1/oauth/request_token",
         "accessEndpoint": "https://api.dropbox.com/1/oauth/access_token",
@@ -64,11 +62,14 @@
 
   "twitter": {
     "1": {
-      "protocols": ["https"],
-      "host": "api.twitter.com",
-      "basepath": "/1",
+      "name": "Twitter",
+      "docs": "https://dev.twitter.com/docs",
+
+      "base": [["^/search", "https://search.twitter.com"], "https://api.twitter.com/1"],
       "suffix": ".json",
-      "auth": ["oauth-with-token", "oauth-callback"],
+      "postType": "form",
+
+      "auth": ["oauth-verified", "oauth-callback"],
       "oauth": {
         "requestEndpoint": "https://api.twitter.com/oauth/request_token",
         "accessEndpoint": "https://api.twitter.com/oauth/access_token",
@@ -81,8 +82,7 @@
 
   "duckduckgo": {
     "1": {
-      "protocols": ["https", "http"],
-      "host": "api.duckduckgo.com",
+      "base": "https://api.duckduckgo.com",
       "params": {
         "format": "json",
         "no_redirect": "1"
@@ -92,19 +92,29 @@
 
   "github": {
     "1": {
-      "protocols": ["https"],
-      "host": "api.github.com"
+      "base": "https://api.github.com"
     }
   },
 
   "tumblr": {
     "2": {
-      "protocols": ["http"],
-      "host": "api.tumblr.com",
-      "basepath": "/v2",
-      "withKey": {
-        "type": "query",
-        "name": "api_key"
+      "base": "http://api.tumblr.com/v2",
+      "keyAsParam": "api_key"
+    }
+  },
+
+  "facebook": {
+    "1": {
+      "base": "https://graph.facebook.com",
+      "postType": "form",
+
+      "auth": ["oauth-verified", "oauth-callback"],
+      "oauth": {
+        "version": "2.0",
+        "base": "https://graph.facebook.com",
+        "props": {
+          "scope": "email,read_stream"
+        }
       }
     }
   }

@@ -6,7 +6,9 @@ make a simple, consistent interface to various REST interfaces. Chasing the
 
 ## Run tests
 
-    coffee test [test-name]
+Run any example in the examples floor.
+
+    coffee examples/youtube
 
 ## Misc. Goals
 

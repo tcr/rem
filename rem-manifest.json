@@ -1,0 +1,111 @@
+{
+  "google-calendar": {
+    "2": {
+      "protocols": ["http"],
+      "host": "www.google.com",
+      "basepath": "/calendar/feeds",
+      "params": {
+        "v": "2",
+        "alt": "jsonc"
+      },
+      "auth": ["oauth-with-token"],
+      "oauth": {
+        "requestEndpoint": "https://www.google.com/accounts/OAuthGetRequestToken",
+        "accessEndpoint": "https://www.google.com/accounts/OAuthGetAccessToken",
+        "authorizeEndpoint": "https://www.google.com/accounts/OAuthAuthorizeToken",
+        "version": "1.0A",
+        "props": {
+          "scope": "http://www.google.com/calendar/feeds"
+        }
+      }
+    }
+  },
+
+  "youtube": {
+    "2": {
+      "protocols": ["https"],
+      "host": "gdata.youtube.com",
+      "basepath": "/feeds/api",
+      "params": {
+        "v": "2",
+        "alt": "jsonc"
+      },
+      "withKey": {
+        "type": "query",
+        "name": "key"
+      },
+      "auth": ["oauth-callback"],
+      "oauth": {
+        "requestEndpoint": "https://www.google.com/accounts/OAuthGetRequestToken",
+        "accessEndpoint": "https://www.google.com/accounts/OAuthGetAccessToken",
+        "authorizeEndpoint": "http://www.youtube.com/oauth_authorize_token",
+        "version": "1.0",
+        "props": {
+          "scope": "http://gdata.youtube.com"
+        }
+      }
+    }
+  },
+
+  "dropbox": {
+    "1": {
+      "protocols": ["https", "http"],
+      "host": [["^/(files(_put)?|thumbnails)/.*", "api-content.dropbox.com"], "api.dropbox.com"],
+      "basepath": "/1",
+      "auth": ["oauth-without-token", "oauth-callback"],
+      "oauth": {
+        "requestEndpoint": "https://api.dropbox.com/1/oauth/request_token",
+        "accessEndpoint": "https://api.dropbox.com/1/oauth/access_token",
+        "authorizeEndpoint": "https://www.dropbox.com/1/oauth/authorize",
+        "version": "1.0"
+      }
+    }
+  },
+
+  "twitter": {
+    "1": {
+      "protocols": ["https"],
+      "host": "api.twitter.com",
+      "basepath": "/1",
+      "suffix": ".json",
+      "auth": ["oauth-with-token", "oauth-callback"],
+      "oauth": {
+        "requestEndpoint": "https://api.twitter.com/oauth/request_token",
+        "accessEndpoint": "https://api.twitter.com/oauth/access_token",
+        "authorizeEndpoint": "https://api.twitter.com/oauth/authorize",
+        "emptyCallback": "oob",
+        "version": "1.0"
+      }
+    }
+  },
+
+  "duckduckgo": {
+    "1": {
+      "protocols": ["https", "http"],
+      "host": "api.duckduckgo.com",
+      "params": {
+        "format": "json",
+        "no_redirect": "1"
+      }
+    }
+  },
+
+  "github": {
+    "1": {
+      "protocols": ["https"],
+      "host": "api.github.com"
+    }
+  },
+
+  "tumblr": {
+    "2": {
+      "protocols": ["http"],
+      "host": "api.tumblr.com",
+      "basepath": "/v2",
+      "withKey": {
+        "type": "query",
+        "name": "api_key"
+      }
+    }
+  }
+}

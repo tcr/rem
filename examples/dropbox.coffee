@@ -6,9 +6,9 @@ keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 # Dropbox
 # =======
 
-dbox = new REM 'dropbox', '1'
-dbox.key = keys.dropbox.key
-dbox.secret = keys.dropbox.secret
+dbox = new REM 'dropbox', '1',
+	key: keys.dropbox.key
+	secret: keys.dropbox.secret
 
 dbox.startOAuth (url, results) ->
 	console.log "Visit:", url

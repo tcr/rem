@@ -6,10 +6,10 @@ keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 # Youtube
 # =======
 
-yt = new REM 'youtube', '2'
+yt = new REM 'youtube', '2',
+	key: 'anonymous'
+	secret: 'anonymous'
 #yt.key = keys.youtube.key
-yt.key = 'anonymous'
-yt.secret = 'anonymous'
 
 yt.startOAuth (url, results) ->
 	console.log "Visit:", url

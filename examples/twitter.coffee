@@ -6,15 +6,17 @@ keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 # Twitter
 # =======
 
-tw = new REM 'twitter', '1'
-tw.key = keys.twitter.key
-tw.secret = keys.twitter.secret
+tw = new REM 'twitter', '1',
+	key: keys.twitter.key
+	secret: keys.twitter.secret
 
 tw.startOAuth (url, results) ->
 	console.log "Visit:", url
 	ask "Please enter the verification code: ", /[\w\d]+/, (verifier) ->
 
 		tw.completeOAuth verifier, (results) ->
+
+			# Authenticated REST calls.
 			#tw.get '/statuses/home_timeline', {}, (err, action) ->
 			#	for twt in action.json
 			#		console.log '[TWITTER]', twt.text

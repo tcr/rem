@@ -1,20 +1,53 @@
 {
   "google-calendar": {
     "2": {
+      "name": "Google Calendar",
+      "docs": "http://code.google.com/apis/calendar/data/2.0/developers_guide_protocol.html",
+
       "base": "https://www.google.com/calendar/feeds",
       "params": {
         "v": "2",
         "alt": "jsonc"
       },
 
-      "auth": ["oauth-callback", "oauth-verified"],
-      "oauth": {
-        "requestEndpoint": "https://www.google.com/accounts/OAuthGetRequestToken",
-        "accessEndpoint": "https://www.google.com/accounts/OAuthGetAccessToken",
-        "authorizeEndpoint": "https://www.google.com/accounts/OAuthAuthorizeToken",
-        "version": "1.0A",
-        "props": {
-          "scope": "http://www.google.com/calendar/feeds"
+      "auth": {
+        "oauth": {
+          "version": "1.0A",
+          "requestEndpoint": "https://www.google.com/accounts/OAuthGetRequestToken",
+          "accessEndpoint": "https://www.google.com/accounts/OAuthGetAccessToken",
+          "authorizeEndpoint": "https://www.google.com/accounts/OAuthAuthorizeToken",
+          "params": {
+            "scope": ["http://www.google.com/calendar/feeds"]
+          },
+          "scopeSeparator": " ",
+          "validate": "/default/owncalendars/full",
+          "oob": true
+        }
+      }
+    }
+  },
+
+  "google-docs": {
+    "3": {
+      "name": "Google Docs",
+
+      "base": "https://docs.google.com/feeds",
+      "params": {
+        "v": "3"
+      },
+
+      "auth": {
+        "oauth": {
+          "version": "1.0A",
+          "requestEndpoint": "https://www.google.com/accounts/OAuthGetRequestToken",
+          "accessEndpoint": "https://www.google.com/accounts/OAuthGetAccessToken",
+          "authorizeEndpoint": "https://www.google.com/accounts/OAuthAuthorizeToken",
+          "params": {
+            "scope": ["https://docs.google.com/feeds/", "https://docs.googleusercontent.com/", "https://spreadsheets.google.com/feeds/"]
+          },
+          "scopeSeparator": " ",
+          "validate": "/metadata/default",
+          "oob": true
         }
       }
     }
@@ -22,6 +55,8 @@
 
   "youtube": {
     "2": {
+      "name": "Youtube",
+
       "base": "https://gdata.youtube.com/feeds/api",
       "params": {
         "v": "2",
@@ -29,15 +64,17 @@
       },
       "keyAsParam": "key",
 
-      "auth": ["oauth-callback"],
-      "oauth": {
-        "requestEndpoint": "https://www.google.com/accounts/OAuthGetRequestToken",
-        "accessEndpoint": "https://www.google.com/accounts/OAuthGetAccessToken",
-        "authorizeEndpoint": "http://www.youtube.com/oauth_authorize_token",
-        "emptyCallback": "oob",
-        "version": "1.0",
-        "props": {
-          "scope": "http://gdata.youtube.com"
+      "auth": {
+        "oauth": {
+          "version": "1.0",
+          "requestEndpoint": "https://www.google.com/accounts/OAuthGetRequestToken",
+          "accessEndpoint": "https://www.google.com/accounts/OAuthGetAccessToken",
+          "authorizeEndpoint": "http://www.youtube.com/oauth_authorize_token",
+          "emptyCallback": "oob",
+          "params": {
+            "scope": ["http://gdata.youtube.com"]
+          },
+          "scopeSeparator": " "
         }
       }
     }
@@ -45,17 +82,24 @@
 
   "dropbox": {
     "1": {
+      "name": "Dropbox",
+      "docs": "https://www.dropbox.com/developers",
+
       "base": [
         ["^/(files(_put)?|thumbnails)/.*", "https://api-content.dropbox.com/1"],
         "https://api.dropbox.com/1"
       ],
 
-      "auth": ["oauth-unverified", "oauth-callback"],
-      "oauth": {
-        "requestEndpoint": "https://api.dropbox.com/1/oauth/request_token",
-        "accessEndpoint": "https://api.dropbox.com/1/oauth/access_token",
-        "authorizeEndpoint": "https://www.dropbox.com/1/oauth/authorize",
-        "version": "1.0"
+      "auth": {
+        "oauth": {
+          "version": "1.0",
+          "requestEndpoint": "https://api.dropbox.com/1/oauth/request_token",
+          "accessEndpoint": "https://api.dropbox.com/1/oauth/access_token",
+          "authorizeEndpoint": "https://www.dropbox.com/1/oauth/authorize",
+          "validate": "/account/info",
+          "oob": true,
+          "oobVerifier": false
+        }
       }
     }
   },
@@ -69,19 +113,24 @@
       "suffix": ".json",
       "postType": "form",
 
-      "auth": ["oauth-verified", "oauth-callback"],
-      "oauth": {
-        "requestEndpoint": "https://api.twitter.com/oauth/request_token",
-        "accessEndpoint": "https://api.twitter.com/oauth/access_token",
-        "authorizeEndpoint": "https://api.twitter.com/oauth/authorize",
-        "emptyCallback": "oob",
-        "version": "1.0"
+      "auth": {
+        "oauth": {
+          "version": "1.0",
+          "requestEndpoint": "https://api.twitter.com/oauth/request_token",
+          "accessEndpoint": "https://api.twitter.com/oauth/access_token",
+          "authorizeEndpoint": "https://api.twitter.com/oauth/authorize",
+          "emptyCallback": "oob",
+          "validate": "/account/verify_credentials",
+          "oob": true
+        }
       }
     }
   },
 
   "duckduckgo": {
     "1": {
+      "name": "Duck Duck Go",
+
       "base": "https://api.duckduckgo.com",
       "params": {
         "format": "json",
@@ -92,12 +141,16 @@
 
   "github": {
     "1": {
+      "name": "Github",
+
       "base": "https://api.github.com"
     }
   },
 
   "tumblr": {
     "2": {
+      "name": "Tumblr",
+
       "base": "http://api.tumblr.com/v2",
       "keyAsParam": "api_key"
     }
@@ -105,15 +158,39 @@
 
   "facebook": {
     "1": {
+      "name": "Facebook",
+
       "base": "https://graph.facebook.com",
       "postType": "form",
 
-      "auth": ["oauth-verified", "oauth-callback"],
-      "oauth": {
-        "version": "2.0",
-        "base": "https://graph.facebook.com",
-        "props": {
-          "scope": "email,read_stream"
+      "auth": {
+        "oauth": {
+          "version": "2.0",
+          "base": "https://graph.facebook.com",
+          "params": {
+            "scope": ["email", "read_stream"],
+            "display": "page"
+          },
+          "scopeSeparator": ",",
+          "validate": "/me"
+        }
+      }
+    }
+  },
+
+  "reddit": {
+    "1": {
+      "name": "Reddit",
+      "docs": "https://github.com/reddit/reddit/wiki/API",
+
+      "base": "http://www.reddit.com/",
+      "postType": "form",
+      "robotsTxt": false,
+      "suffix": ".json",
+
+      "auth": {
+        "session": {
+          "cookies": ["reddit_session"]
         }
       }
     }

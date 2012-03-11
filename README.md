@@ -1,21 +1,50 @@
-# REM, remedial rest interfaces
+# REM, Manifest-based REST Clients
 
-Goal: a cross-platform library which uses a manifest of known APIs to
-make a simple, consistent interface to various REST interfaces. Chasing the
-"ideal" RESTful web, with hypertext as the engine of application state.
+REM provides a minimal library to access REST APIs. It defines many popular APIs
+by manifest (and allows the user to define their own manifests) to smooth out
+differences between configuration, authentication, and formats. As a result,
+getting started with REM is consistent and easy.
 
-## Run tests
+## How it works
 
-Run any example in the examples floor.
+REM defines a manifest of common APIs in `rem-manifest.json`. For example, OAuth
+endpoints, session cookies, or API domains are specified for the user. Getting
+started with a particular API is as simple is specifying the name and API version:
+
+    tw = new REM('twitter', 1, {key: 'KEY', secret: 'SECRET'}) // Get started with https://api.twitter.com/1
+
+You can make API requests simply:
+
+    tw.post('/statuses/update', {status: message}, function (err, action) {
+		console.log(err, action && action.json)
+	})
+
+OAuth authentication is predefined in the manifest, and is possible in callback
+or out-of-band modes (where available):
+
+    tw.startOAuth(function (url, results) {
+    	console.log("Visit:", url)
+    	ask("Please enter the verification code: ", /[\w\d]+/, function (verifier) {
+		    tw.completeOAuth(verifier, function (results) {
+		        // Authenticated calls with the Twitter API can be done here.
+		    })
+		})
+    })
+
+## Examples
+
+You should create a file called `keys.json` in examples with your API keys and secrets,
+in the following format:
+
+    {"tumblr": {"key": "KEY", "secret": "SECRET"}, "twitter": ...}
+
+Then, any example in the examples folder can be run from the command line:
 
     coffee examples/youtube
 
-## Misc. Goals
+## TODO
 
-* Abstract the host, i.e. `api.tumblr.com/v2` is be initialized `new REM('tumblr', 2)`
-* Normalize rate limit/remaining option for APIs where it is available; throw consistent
-  rate limit exceeded error
-* Normalize OAuth/API key/authentication mechanisms
-* Give each API a top-level reference (at `/`) to navigate available API calls, where
-  one doesn't exist
-* Have a JSON-defined schema listing each API's differences, making it cross-platform
+* When the API specifies it, extract rate limit/remaining options.
+* Make a REM implementation in other languages (Python, client-side JS)
+* Support more APIs
+* Allow user to programmatically defining own API manifests

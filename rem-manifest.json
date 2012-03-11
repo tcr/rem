@@ -10,6 +10,11 @@
         "alt": "jsonc"
       },
 
+      "formats": {
+        "xml": {},
+        "json": {"params": {"alt": "jsonc"}}
+      },
+
       "auth": {
         "oauth": {
           "version": "1.0A",
@@ -36,6 +41,10 @@
         "v": "3"
       },
 
+      "formats": {
+        "xml": {}
+      },
+
       "auth": {
         "oauth": {
           "version": "1.0A",
@@ -60,9 +69,13 @@
       "base": "https://gdata.youtube.com/feeds/api",
       "params": {
         "v": "2",
-        "alt": "jsonc"
       },
       "keyAsParam": "key",
+
+      "formats": {
+        "xml": {},
+        "json": {"params": {"alt": "jsonc"}}
+      },
 
       "auth": {
         "oauth": {
@@ -110,8 +123,12 @@
       "docs": "https://dev.twitter.com/docs",
 
       "base": [["^/search", "https://search.twitter.com"], "https://api.twitter.com/1"],
-      "suffix": ".json",
       "postType": "form",
+
+      "formats": {
+        "xml": {"suffix": ".xml"},
+        "json": {"suffix": ".json"}
+      },
 
       "auth": {
         "oauth": {
@@ -183,16 +200,29 @@
       "name": "Reddit",
       "docs": "https://github.com/reddit/reddit/wiki/API",
 
-      "base": "http://www.reddit.com/",
+      "base": "http://www.reddit.com",
       "postType": "form",
       "robotsTxt": false,
-      "suffix": ".json",
+
+      "formats": {
+        "xml": {"suffix": ".xml"},
+        "json": {"suffix": ".json"}
+      },
 
       "auth": {
         "session": {
           "cookies": ["reddit_session"]
         }
       }
+    }
+  },
+
+  "amazon-s3": {
+    "1": {
+      "name": "Amazon S3",
+      "docs": "http://docs.amazonwebservices.com/AmazonS3/latest/API/APIRest.html",
+      
+      "base": "https://s3.amazonaws.com"
     }
   }
 }

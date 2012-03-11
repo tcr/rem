@@ -302,11 +302,22 @@ class REM
 					cb()
 
 	completeOAuth: ([verifier]..., cb) ->
+		if not verifier? and @manifest.auth.oauth.oobVerifier
+			console.error 'Out-of-band OAuth for this API requires a verification code.'
+			return
+
 		@oauth.getOAuthAccessToken @oauthToken, @oauthTokenSecret, verifier, (err, @oauthToken, @oauthTokenSecret, results) =>
 			if err
 				console.error "Error authorizing OAuth endpoint: " + JSON.stringify(err)
 			else
 				cb results
+
+	validateOAuth: (cb) ->
+		if not @manifest.auth.oauth.validate
+			throw new Error 'Manifest does not define mechanism for validating OAuth.'
+		@get @manifest.auth.oauth.validate, (err, data) ->
+			console.error err, data
+			cb err
 
 	oauthMiddleware: (path, cb) ->
 		return (req, res, next) =>
@@ -315,13 +326,6 @@ class REM
 				res.send 'OAuth2 verified.'
 			else
 				next()
-
-	validateOAuth: (cb) ->
-		if not @manifest.auth.oauth.validate
-			throw new Error 'Manifest does not define mechanism for validating OAuth.'
-		@get @manifest.auth.oauth.validate, (err, data) ->
-			console.error err, data
-			cb err
 
 	# Save/restore state.
 

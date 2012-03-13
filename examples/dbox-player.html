@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<script src="../lib/rem-browser.js"></script>
+<script src='jquery.js'></script>
+<script src="keys.js"></script>
+<script>
+
+$(function () {
+	$('#account').hide()
+
+	var dropbox = new REM('dropbox', '1', {key: keys.dropbox.key, secret: keys.dropbox.secret})
+
+	dropbox.completeOAuth(function (err) {
+		if (err) {	
+			console.log(err);
+			dropbox.startOAuthCallback()
+			return;
+		} 
+
+		dropbox.get('/account/info', {}, function (err, data) {
+			$('#account').show()
+			$('#account h2').text('Welcome, ' + data.display_name)
+		})
+
+		dropbox.get('/metadata/sandbox/', {}, function (err, data) {
+			data.contents.forEach(function (f) {
+				if (f.mime_type != 'audio/mpeg') return
+				dropbox.get('/media/sandbox' + (f.path), {}, function (err, data) {
+					$('#songs').append('<h3>' + f.path + '</h3>')
+					$('#songs').append('<audio src="' + data.url + '" controls>No audio!</audio>')
+				})
+			});
+		})
+	})
+
+	$('button.clear-state').click(function () {
+		dropbox.clearState()
+	})
+})
+
+</script>
+<body>
+	<h1>REM Dropbox API</h1>
+	<div id="account">
+		<h2>Welcome</h2>
+		<button class="clear-state">Clear Credentials</button>
+	</div>
+	<div id="songs"></div>
+	</body>
+</html>

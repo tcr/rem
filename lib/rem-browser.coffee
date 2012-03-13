@@ -1,7 +1,7 @@
-document.write "<script type='text/javascript' src='../../lib/oauth.js'></script>"
-document.write "<script type='text/javascript' src='../../lib/sha1.js'></script>"
-document.write "<script type='text/javascript' src='../../lib/jsonp.js'></script>"
-document.write "<script type='text/javascript' src='../../lib/store.min.js'></script>"
+document.write "<script type='text/javascript' src='../lib/oauth.js'></script>"
+document.write "<script type='text/javascript' src='../lib/sha1.js'></script>"
+document.write "<script type='text/javascript' src='../lib/jsonp.js'></script>"
+document.write "<script type='text/javascript' src='../lib/store.min.js'></script>"
 
 manifests = {
   "dropbox": {
@@ -26,6 +26,30 @@ manifests = {
         }
       }
     }
+  },
+
+  "twitter": {
+    "1": {
+      "name": "Twitter",
+      "docs": "https://dev.twitter.com/docs",
+
+      "base": [["^/search", "https://search.twitter.com"], "https://api.twitter.com/1"],
+      "postType": "form",
+
+      "suffix": ".json",
+
+      "auth": {
+        "oauth": {
+          "version": "1.0",
+          "requestEndpoint": "https://api.twitter.com/oauth/request_token",
+          "accessEndpoint": "https://api.twitter.com/oauth/access_token",
+          "authorizeEndpoint": "https://api.twitter.com/oauth/authorize",
+          "emptyCallback": "oob",
+          "validate": "/account/verify_credentials",
+          "oob": true
+        }
+      }
+    }
   }
 }
 
@@ -46,15 +70,44 @@ querystring =
 this.REM = class REM
 	@_counter = 0
 
-	constructor: (@name, @version = '1', opts) ->
+	getHost = (hosturl) ->
+		try
+			return hosturl.match(/^https?:\/\/[^\/]+/)?[0]
+			#hosturl = url.parse(hosturl)
+			#return "#{hosturl.protocol}//#{hosturl.host}"
+		catch e
+			return null
+
+	constructor: (@name, @version = '1', @opts) ->
 		@manifest = manifests[@name][@version]
+		if not @manifest
+			throw new Error 'Unable to construct API ' + @name + '::' + @version
 
-		{@key, @secret} = opts
-		@id = @type + REM._counter++
+		# Load key, secret
+		{@key, @secret} = @opts
 
-		# Initialize store.
+		# OAuth.
 		for k in ['requestToken', 'requestTokenSecret', 'accessToken', 'accessTokenSecret'] when store.get("#{@id}-#{k}")?
 			@[k] = store.get("#{@id}-#{k}")
+
+		# Add filter methods
+		@filters = []
+		if @manifest.basepath?
+			@filters.push (endpoint) => endpoint.pathname = @manifest.basepath + endpoint.pathname
+		if @manifest.suffix?
+			@filters.push (endpoint) => endpoint.pathname += @manifest.suffix
+		if @manifest.keyAsParam?
+			@filters.push (endpoint) => endpoint.query[@manifest.keyAsParam] = @key
+		if @manifest.params?
+			@filters.push (endpoint) =>
+				for qk, qv of @manifest.params then endpoint.query[qk] = qv
+
+		# Get list of hosts from manifest.
+		if typeof @manifest.base == 'object'
+			@hosts = for v in @manifest.base
+				getHost if typeof v == 'object' then v[1] else v
+		else 
+			@hosts = [getHost @manifest.base]
 
 	_createOAuthRequest: (param1, param2) ->
 		param1.token ?= @accessToken
@@ -83,8 +136,7 @@ this.REM = class REM
 
 	startOAuthCallback: (url = window.location.href.replace(/\?.*$/, '')) ->
 		@_sendOAuthRequest
-			url: "https://api.dropbox.com/1/oauth/request_token"
-			type: "text"
+			url: @manifest.auth.oauth.requestEndpoint
 			token: true
 			tokenSecret: true
 		, [], (data) =>
@@ -92,7 +144,7 @@ this.REM = class REM
 			store.set "#{@id}-requestToken", dataArray["oauth_token"]
 			store.set "#{@id}-requestTokenSecret", dataArray["oauth_token_secret"]
 
-			document.location = "https://www.dropbox.com/1/oauth/authorize?oauth_token=" + dataArray["oauth_token"] + "&oauth_callback=" + url
+			document.location =  @manifest.auth.oauth.authorizeEndpoint + "?oauth_token=" + dataArray["oauth_token"] + "&oauth_callback=" + url
 
 	completeOAuth: (cb) ->
 		if @accessToken and @accessTokenSecret
@@ -103,8 +155,7 @@ this.REM = class REM
 			return
 
 		@_sendOAuthRequest
-			url: "https://api.dropbox.com/1/oauth/access_token"
-			type: "text"
+			url:  @manifest.auth.oauth.accessEndpoint
 			token: @requestToken
 			tokenSecret: @requestTokenSecret
 		, [], (data) =>
@@ -117,16 +168,41 @@ this.REM = class REM
 			cb()
 
 	get: (path, [params]..., cb) ->
+		# Normalize path.
+		if path[0] != '/'
+			path = '/' + path
+		# Determine host.
+		if typeof @manifest.base == 'string'
+			base = @manifest.base
+		else
+			base = ''
+			for pat in @manifest.base
+				if typeof pat == 'string'
+					base = pat
+					break
+				if path.match new RegExp(pat[0])
+					base = pat[1]
+					break
+
+		# Construct endpoint path.
+		###
+		endpoint = url.parse base + path
+		endpoint.query = {}
+		for qk, qv of query
+			endpoint.query[qk] = qv
+		for filter in @filters
+			filter endpoint
+		# Normalize endpoint.
+		endpointUrl = url.format endpoint
+		endpoint = url.parse endpointUrl
+		###
+		endpointUrl = base + path
+
+		# Create params list from object.
 		list = ([k, params[k]] for k of (params or {}))
-		@_sendOAuthRequest {url: @_host + path}, list, (data) ->
+		# Send request
+		@_sendOAuthRequest {url: endpointUrl}, list, (data) ->
 			cb 0, data
-
-	_host: "https://api.dropbox.com/1"
-
-	getUrl: (path, [params]..., cb) ->
-		list = ([k, params[k]] for k of (params or {}))
-		message = @_createOAuthRequest {url: @_host + path}, list
-		return message.action + '?' + querystring.stringify OAuth.getParameterMap(message.parameters)
 
 	clearState: ->
 		store.clear()

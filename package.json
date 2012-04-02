@@ -1,0 +1,22 @@
+{ "name": "rem"
+, "description": "A library for getting started with popular REST APIs."
+, "version": "0.0.1"
+, "author"        : "Tim Cameron Ryan <tim@timryan.org>"
+, "contributors"  : []
+, "dependencies"  : {
+    "express": "2.5.8",
+    "libxmljs": "0.5.4",
+    "coffee-script": "1.2.0",
+    "oauth": "0.9.6",
+    "robotstxt": "0.0.4-5",
+    "tough-cookie": "0.9.8",
+    "underscore": "1.3.1",
+    "underscore.string": "2.1.1"
+  }
+, "main": "./rem.coffee"
+, "keywords": ["rem", "javascript", "rest", "api", "facebook", "dropbox", "twitter"]
+, "repository":
+  { "type" : "git"
+  , "url" : "git://github.com/timcameronryan/rem-node.git"
+  } 
+}

@@ -68,7 +68,7 @@
 
       "base": "https://gdata.youtube.com/feeds/api",
       "params": {
-        "v": "2",
+        "v": "2"
       },
       "keyAsParam": "key",
 

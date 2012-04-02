@@ -17,7 +17,6 @@ url = require 'url'
 fs = require 'fs'
 robots = require './robotstxt'
 libxmljs = require 'libxmljs'
-mime = require 'mime'
 {Cookie, CookieJar} = require 'tough-cookie'
 
 USER_AGENT = 'Mozilla/5.0 (compatible; REMbot/1.0; +http://rem.tcr.io/)'
@@ -351,7 +350,6 @@ class REM
 			for cookie in data.cookies[host]
 				@cookies.setCookie cookie, host, (err) ->
 					console.error err if err
-		if data.oauth
-			@validateOAuth cb if cb
+		cb() if cb
 
 module.exports = REM

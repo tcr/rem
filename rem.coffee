@@ -15,7 +15,6 @@ http = require 'http'
 util = require 'util'
 url = require 'url'
 fs = require 'fs'
-robots = require './robotstxt'
 libxmljs = require 'libxmljs'
 {Cookie, CookieJar} = require 'tough-cookie'
 
@@ -136,14 +135,15 @@ class REM
 		else 
 			@hosts = [getHost @manifest.base]
 		# Initialize robots.txt crawlers.
+		# Todo: add robots.txt support?
 		@gatekeepers = {}
-		if @manifest.robotsTxt
-			for host in @hosts
-				do (host) =>
-					txt = robots "#{host}/robots.txt", USER_AGENT
-					txt.on 'error', (err) -> # ignore
-					txt.on 'ready', (gatekeeper) =>
-						@gatekeepers[host] = gatekeeper
+		#if @manifest.robotsTxt
+		#	for host in @hosts
+		#		do (host) =>
+		#			txt = robots "#{host}/robots.txt", USER_AGENT
+		#			txt.on 'error', (err) -> # ignore
+		#			txt.on 'ready', (gatekeeper) =>
+		#				@gatekeepers[host] = gatekeeper
 
 	_request: (method, path, query, mime, body, fn) ->
 		# Normalize path.

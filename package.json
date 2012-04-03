@@ -1,11 +1,10 @@
 { "name": "rem"
 , "description": "A library for getting started with popular REST APIs."
-, "version": "0.0.2"
+, "version": "0.0.3"
 , "author"        : "Tim Cameron Ryan <tim@timryan.org>"
 , "contributors"  : []
 , "dependencies"  : {
     "express": "2.5.8",
-    "libxmljs": "0.5.4",
     "coffee-script": "1.2.0",
     "oauth": "0.9.6",
     "tough-cookie": "0.9.8"

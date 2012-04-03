@@ -15,8 +15,10 @@ http = require 'http'
 util = require 'util'
 url = require 'url'
 fs = require 'fs'
-libxmljs = require 'libxmljs'
 {Cookie, CookieJar} = require 'tough-cookie'
+
+# Conditional requires.
+libxmljs = null
 
 USER_AGENT = 'Mozilla/5.0 (compatible; REMbot/1.0; +http://rem.tcr.io/)'
 
@@ -58,7 +60,7 @@ class REMAction
 		try
 			if @res.headers['content-type'].replace(/\s+|;.*/g, '') in ['text/xml', 'application/xml', 'application/atom+xml']
 				@type = 'xml'
-				@xml = libxmljs.parseXmlString @text
+				@xml = (libxmljs ?= require('libxmljs')).parseXmlString @text
 
 			else
 				@type = 'json'

@@ -1,4 +1,4 @@
-REM = require '../rem'
+rem = require '../rem'
 fs = require 'fs'
 {ask} = require './utils'
 keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
@@ -6,8 +6,8 @@ keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 # Tumblr
 # ======
 
-tumblr = new REM 'tumblr', '2',
+tumblr = rem.load 'tumblr', '2',
 	key: keys.tumblr.key
 
-tumblr.get '/blog/heysaturdaysun.tumblr.com/posts/text', {}, (err, action) ->
-	console.log '[TUMBLR]', action.json.response.blog.title + ' - ' + action.json.response.blog.description
+tumblr.get '/blog/staff.tumblr.com/posts/text', {}, (err, json) ->
+	console.log json.response.blog.title + ' - ' + json.response.blog.description

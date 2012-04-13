@@ -4,6 +4,7 @@ exports.ask = (question, format, callback) ->
 	stdin.resume()
 	stdout.write question
 	stdin.once "data", (data) ->
+		stdin.pause()
 		data = data.toString().trim()
 		if format.test(data)
 			callback data

@@ -1,4 +1,4 @@
-REM = require '../rem'
+rem = require '../rem'
 fs = require 'fs'
 {ask} = require './utils'
 keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
@@ -6,7 +6,7 @@ keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 # Youtube
 # =======
 
-yt = new REM 'youtube', '2',
+yt = rem.load 'youtube', '2',
 	key: 'anonymous'
 	secret: 'anonymous'
 #yt.key = keys.youtube.key

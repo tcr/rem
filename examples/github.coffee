@@ -1,4 +1,4 @@
-REM = require '../rem'
+rem = require '../rem'
 fs = require 'fs'
 {ask} = require './utils'
 keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
@@ -6,8 +6,9 @@ keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 # Github
 # ======
 
-github = new REM 'github', '1'
+github = rem.load 'github', '1'
 
-github.get '/users/noahlt/gists', {}, (err, action) ->
-	console.log '[GITHUB]', action.json[0].description
-	console.log '[GITHUB]', action.rate
+console.log 'See a list of gists by timcameronryan:'
+github.get '/users/timcameronryan/gists', {}, (err, json) ->
+	for gist in json
+		console.log gist.description

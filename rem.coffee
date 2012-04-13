@@ -22,6 +22,12 @@ libxmljs = null
 
 USER_AGENT = 'Mozilla/5.0 (compatible; REMbot/1.0; +http://rem.tcr.io/)'
 
+Object.merge = (a, b) ->
+	c = {}
+	for k, v of a then c[k] = v
+	for k, v of b then c[k] = v
+	return c
+
 # Lib functions
 # -------------
 
@@ -53,26 +59,24 @@ OAuth2::delete = (url, accessToken, body, mime, cb) ->
 # REM Classes
 # -----------
 
-manifests = JSON.parse fs.readFileSync __dirname + '/rem-manifest.json'
-
 class REMAction
 	constructor: (@res, @text, fn) ->
 		try
 			if @res.headers['content-type'].replace(/\s+|;.*/g, '') in ['text/xml', 'application/xml', 'application/atom+xml']
 				@type = 'xml'
-				@xml = (libxmljs ?= require('libxmljs')).parseXmlString @text
+				@data = @xml = (libxmljs ?= require('libxmljs')).parseXmlString @text
 
 			else
 				@type = 'json'
-				@json = JSON.parse @text
+				@data = @json = JSON.parse @text
 				@parseRate()
 				@parseHrefs()
 
 			@statusCode = Number(@res.statusCode)
-			if @statusCode >= 400 then fn(@statusCode, this)
-			else fn(0, this)
+			if @statusCode >= 400 then fn(@statusCode, @data, this)
+			else fn(0, @data, this)
 		catch e
-			fn(e, this)
+			fn(e, @data, this)
 	
 	parseRate: ->
 		@rate =
@@ -90,7 +94,7 @@ class REMAction
 					cur = cur[k]
 				cur[level[-1..][0]] = obj
 
-class REM
+class API
 	getHost = (hosturl) ->
 		try
 			hosturl = url.parse(hosturl)
@@ -98,13 +102,15 @@ class REM
 		catch e
 			return null
 
-	constructor: (@name, @version = '1', @opts) ->
-		@manifest = manifests[@name][@version]
-		if not @manifest
-			throw new Error 'Unable to construct API ' + @name + '::' + @version
-
+	constructor: (@manifest, @opts = {}) ->
 		# Load key, secret
-		{@key, @secret} = @opts
+		{@key, @secret, @format} = @opts
+
+		# Load format-specific options.
+		@format ?= 'json'
+		@manifest.formats ?= {json: {}}
+		if !@manifest.formats[@format]? then throw new Error "Format #{@format} not available."
+		@manifest = Object.merge @manifest, @manifest.formats[@format] or {}
 
 		# OAuth.
 		if 'oauth' of (@manifest.auth or {})
@@ -115,8 +121,8 @@ class REM
 			else
 				@oauth = new OAuth2 @key, @secret, @manifest.auth.oauth.base
 		# Create cookie jar.
-		if 'session' of @manifest.auth or {}
-			@cookies = new CookieJar()
+		#if 'session' of (@manifest.auth or {})
+		@cookies = new CookieJar()
 
 		# Add filter methods
 		@filters = []
@@ -147,7 +153,11 @@ class REM
 		#			txt.on 'ready', (gatekeeper) =>
 		#				@gatekeepers[host] = gatekeeper
 
-	_request: (method, path, query, mime, body, fn) ->
+	_request: (method, path, query, mime, body, userfn) ->
+		fn = (err, data, res) ->
+			if err then userfn(err, null)
+			else new REMAction res, data, userfn
+
 		# Normalize path.
 		if path[0] != '/'
 			path = '/' + path
@@ -194,7 +204,9 @@ class REM
 
 		# Standard HTTP request.
 		else
-			req = (if endpoint.protocol == 'https:' then https else http).request host: endpoint.host, path: endpoint.path, method: method
+			opts = JSON.parse JSON.stringify endpoint
+			opts.method = method
+			req = (if endpoint.protocol == 'https:' then https else http).request opts
 			req.on 'response', (res) =>
 				# Attempt to follow Location: headers.
 				if res.statusCode in [301, 302, 303] and res.headers['location']
@@ -219,6 +231,7 @@ class REM
 				res.on 'data', (d) => text += d
 				res.on 'end', => fn 0, text, res
 
+			req.setHeader 'Host', opts.host
 			req.setHeader 'User-Agent', USER_AGENT
 			req.setHeader 'Content-Type', mime if mime?
 			req.setHeader 'Content-Length', body.length if body?
@@ -229,9 +242,7 @@ class REM
 
 	get: (path, [query]..., fn) ->
 		query ?= {}
-		req = @_request 'get', path, query, null, null, (err, data, res) ->
-			if err then fn(err, null)
-			else new REMAction res, data, fn
+		req = @_request 'get', path, query, null, null, fn
 
 	post: (path, [query]..., data, fn) ->
 		query ?= {}
@@ -240,21 +251,15 @@ class REM
 		else
 			payload = ['application/json', safeJSONStringify(data)]
 
-		req = @_request 'post', path, query, payload..., (err, data, res) ->
-			if err then fn(err, null)
-			else new REMAction res, data, fn
+		req = @_request 'post', path, query, payload..., fn
 
 	put: (path, [query]..., mime, data, fn) ->
 		query ?= {}
-		req = @_request 'put', path, query, mime, data, (err, data, res) ->
-			if err then fn(err, null)
-			else new REMAction res, data, fn
+		req = @_request 'put', path, query, mime, data, fn
 
 	delete: (path, [query]..., fn) ->
 		query ?= {}
-		req = @_request 'delete', path, query, (err, data, res) ->
-			if err then fn(err, null)
-			else new REMAction res, data, fn
+		req = @_request 'delete', path, query, fn
 
 	# Session-based Auth
 	# ------------------
@@ -270,6 +275,45 @@ class REM
 	oauthRedirectUri: null
 	oauthToken: null
 	oauthTokenSecret: null
+
+	oauthCall: (path, query, fn) ->
+		url = @manifest.auth.oauth.base
+		opts = JSON.parse JSON.stringify endpoint
+		opts.method = method
+		req = (if endpoint.protocol == 'https:' then https else http).request opts
+		req.on 'response', (res) =>
+			# Attempt to follow Location: headers.
+			if res.statusCode in [301, 302, 303] and res.headers['location']
+				try
+					path = url.parse(res.headers['location'])?.pathname
+					@_request method, path, query, mime, body, fn
+				catch e
+				return
+
+			# Read cookies.
+			if res.headers['set-cookie'] instanceof Array
+				cookies = res.headers['set-cookie'].map Cookie.parse
+			else if res.headers['set-cookie']?
+				cookies = [Cookie.parse(res.headers['set-cookie'])]
+			for cookie in (cookies or []) when cookie.key in (@manifest.auth?.session?.cookies or [])
+				@cookies.setCookie cookie, endpointUrl, (err, r) ->
+					console.error err if err
+
+			# Read content.
+			text = ''
+			unless res.headers['content-type'] or res.headers['content-length'] then fn 0, text, res
+			res.on 'data', (d) => text += d
+			res.on 'end', => fn 0, text, res
+
+		req.setHeader 'Host', opts.host
+		req.setHeader 'Accept', '*/*'
+		req.setHeader 'User-Agent', USER_AGENT
+		req.setHeader 'Content-Type', mime if mime?
+		req.setHeader 'Content-Length', body.length if body?
+		@cookies.getCookieString endpointUrl, (err, cookies) =>
+			req.setHeader 'Cookie', cookies
+			req.write body if body?
+			req.end()
 
 	startOAuthCallback: (@oauthRedirectUri, [params]..., cb) ->
 		params ?= {}
@@ -354,4 +398,18 @@ class REM
 					console.error err if err
 		cb() if cb
 
-module.exports = REM
+# Public API
+# ----------
+
+exports.API = API
+
+exports.create = (manifest, opts) -> new API manifest, opts
+
+# TODO also load locally
+exports.load = (name, version = '1', opts) ->
+	try
+		manifest = JSON.parse(fs.readFileSync __dirname + '/common/' + name + '.json')[version]
+		if not manifest? then throw 'Manifest not found'
+	catch e
+		throw new Error 'Unable to find API ' + name + '::' + version
+	return new API manifest, opts

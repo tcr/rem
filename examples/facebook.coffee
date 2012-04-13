@@ -1,4 +1,4 @@
-REM = require '../rem'
+rem = require '../rem'
 fs = require 'fs'
 express = require 'express'
 {ask} = require './utils'
@@ -13,7 +13,7 @@ app.listen 3000
 # Facebook
 # ========
 
-fb = new REM 'facebook', '1',
+fb = rem.load 'facebook', '1',
 	key: keys.facebook.key
 	secret: keys.facebook.secret
 
@@ -27,10 +27,11 @@ app.use fb.oauthMiddleware '/oauth/callback/', ->
 
 	# Authenticated REST calls start here.
 
-	fb.get '/me', (err, action) ->
+	fb.get '/me', (err, json) ->
 		if err then console.error 'Facebook auth failed:', err; return
-		console.log 'Facebook auth succeeded.'
+		console.log 'Facebook auth succeeded. (Closing server.)'
+		app.close()
 
 		ask "Post a status update: ", /.*/, (txt) ->
-			fb.post "/me/feed", message: txt, (err, action) ->
-				console.log err, action?.json
+			fb.post "/me/feed", message: txt, (err, json) ->
+				console.log err, json

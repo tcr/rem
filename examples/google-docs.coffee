@@ -1,4 +1,4 @@
-REM = require '../rem'
+rem = require '../rem'
 fs = require 'fs'
 {ask} = require './utils'
 keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
@@ -6,7 +6,9 @@ keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 # Google Calendar
 # ===============
 
-docs = new REM 'google-docs', '3',
+console.log 'THIS EXAMPLE IS BROKEN. Try back later. :)'
+
+docs = rem.load 'google-docs', '3',
 	key: 'anonymous'
 	secret: 'anonymous'
 

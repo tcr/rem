@@ -17,11 +17,12 @@ You can make API requests simply:
     tw('search').get({q: 'fleetwood mac', rpp: 5}, function(err, json) {
         console.log('There are', json.results.length, 'results for Fleetwood Mac. #awesome');
     });
-    tw.post('statuses/update', {status: message}, function (err, json) {
+    // requires authentication:
+    tw('statuses/update').post({status: message}, function (err, json) {
 		console.log(err, json)
 	})
 
-OAuth authentication is predefined. You can authenticate by using callbacks,
+OAuth authentication parameters are already included. You can authenticate by using callbacks,
 connect middleware, or out-of-band modes when available:
 
     tw.startOAuth(function (url, results) {

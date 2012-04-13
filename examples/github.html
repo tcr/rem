@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<script src="../lib/rem-browser.js"></script>
+<script src='jquery.js'></script>
+<script src="keys.js"></script>
+<script>
+
+var gh = rem.create({
+"name": "Github",
+"base": "https://api.github.com"
+})
+
+gh('users/timcameronryan/gists').get(function (err, json) {
+	$.each(json, function (i, gist) {
+		$('ul').append('<li>' + gist.description + '</li>')
+	})
+})
+
+</script>
+<body>
+	<h1>Github API Demo</h1>
+	<p>CORS demo fetching results from <a href="https://api.github.com/users/timcameronryan/gists?">Github</a>:
+	<ul></ul>
+</body>
+</html>

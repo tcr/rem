@@ -67,7 +67,15 @@ querystring =
 			str += k + '=' + v + '&'
 		return str
 
-this.REM = class REM
+class Route
+	constructor: (@api, @path = '', @query = {}) ->
+
+
+	get: (cb) ->
+		@api.request 'get', @path, @query, null, null, cb
+
+
+class API
 	@_counter = 0
 
 	getHost = (hosturl) ->
@@ -78,13 +86,12 @@ this.REM = class REM
 		catch e
 			return null
 
-	constructor: (@name, @version = '1', @opts) ->
-		@manifest = manifests[@name][@version]
-		if not @manifest
-			throw new Error 'Unable to construct API ' + @name + '::' + @version
-
+	constructor: (@manifest, @opts = {}) ->
 		# Load key, secret
 		{@key, @secret} = @opts
+
+		# Format.
+		@format = @opts.format ? 'json'
 
 		# OAuth.
 		for k in ['requestToken', 'requestTokenSecret', 'accessToken', 'accessTokenSecret'] when store.get("#{@id}-#{k}")?
@@ -167,7 +174,9 @@ this.REM = class REM
 
 			cb()
 
-	get: (path, [params]..., cb) ->
+	call: (path, query) -> new Route this, path, query
+
+	request: (method, path, query, mime, body, cb) ->
 		# Normalize path.
 		if path[0] != '/'
 			path = '/' + path
@@ -199,10 +208,31 @@ this.REM = class REM
 		endpointUrl = base + path
 
 		# Create params list from object.
-		list = ([k, params[k]] for k of (params or {}))
+		list = ([k, query[k]] for k of (query or {}))
 		# Send request
-		@_sendOAuthRequest {url: endpointUrl}, list, (data) ->
-			cb 0, data
+		$.ajax
+			url: endpointUrl + '?' + querystring.stringify query
+			data: body
+			dataType: mime
+			success: (data) -> cb 0, data
+			error: (err) -> cb err, null
+
+		#@_sendOAuthRequest {url: endpointUrl}, list, (data) ->
+		#	cb 0, data
 
 	clearState: ->
 		store.clear()
+
+this.rem = rem = {}
+
+rem.create = (manifest, opts) ->
+	f = (args...) -> f.call args...
+	for k, v of API.prototype then f[k] = v
+	API.call(f, manifest, opts)
+	return f
+
+rem.load = (name, version, opts = {}) ->
+	manifest = manifests[name][version]
+	if not manifest
+		throw new Error 'Unable to construct API ' + name + '::' + version
+	return rem.create manifest, opts

@@ -13,16 +13,16 @@ reddit = rem.load 'reddit', '1'
 
 ask 'Username: ', /.*/, (user) ->
 	ask 'Password: ', /.*/, (passwd) ->
-		reddit.post '/api/login', {user, passwd}, (err, json) ->
+		reddit('api/login').post {user, passwd}, (err, json) ->
 			if err then console.log err; return
 
 			# Begin authenticated requests here.
-			reddit.get '/api/me', (err, json) ->
+			reddit('api/me').get (err, json) ->
 				console.log err, JSON.stringify json
 
 			# Try restoring state and duplication requests.
 			reddit.saveState (state) ->
 				reddit = rem.load 'reddit', '1'
 				reddit.loadState state
-				reddit.get '/api/me', (err, json) ->
+				reddit('api/me').get (err, json) ->
 					console.log err, JSON.stringify json

@@ -16,8 +16,9 @@ gcal.startOAuth (url, results) ->
 	console.log "Visit:", url
 	ask "Please enter the verification code: ", /[\w\d]+/, (verifier) ->
 		gcal.completeOAuth verifier, (results) ->
+		
 			# Authenticated REST calls.
-			gcal.get '/default/allcalendars/full', {}, (err, json) ->
+			gcal('default/allcalendars/full').get (err, json) ->
 				if err then console.log err; return
 
 				console.log 'Your calendars:'

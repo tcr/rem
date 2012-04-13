@@ -18,7 +18,7 @@ docs.startOAuth (url, results) ->
 		docs.completeOAuth verifier, (results) ->
 
 			# Authenticated REST calls.
-			docs.get '/default/private/full', {}, (err, action) ->
+			docs('default/private/full').get (err, action) ->
 				if err then console.log err; return
 				
 				# Returned as XML. See libxmljs for more bindings:

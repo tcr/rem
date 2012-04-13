@@ -8,5 +8,5 @@ keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 
 ddg = rem.load 'duckduckgo', '1'
 
-ddg.get '/', q: 'valley forge national park', (err, json) ->
-	console.log '[DDG]', json.Heading
+ddg().get q: 'java', (err, json) ->
+	console.log 'Search for "java":', json.Heading

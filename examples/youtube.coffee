@@ -6,6 +6,8 @@ keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 # Youtube
 # =======
 
+console.log 'THIS EXAMPLE IS BROKEN. Try back later. :)'
+
 yt = rem.load 'youtube', '2',
 	key: 'anonymous'
 	secret: 'anonymous'
@@ -15,7 +17,9 @@ yt.startOAuth (url, results) ->
 	console.log "Visit:", url
 	ask "Please enter the verification code: ", /[\w\d]+/, (verifier) ->
 		yt.completeOAuth verifier, (results) ->
-			yt.get '/videos', {q: 'surfing'}, (err, action) ->
+
+			# Authenticated REST calls.
+			yt('videos').get {q: 'surfing'}, (err, action) ->
 				if err
 					console.log 'Error', err, action?.text
 				else

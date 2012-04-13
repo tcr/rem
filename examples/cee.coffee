@@ -7,4 +7,5 @@ fs = require 'fs'
 
 cee = rem.load 'nonolith', '1'
 
-cee.post "/devices/com.nonolithlabs.cee*/#{process.argv[2]}/output", mode: 'svmi', value: process.argv[3], (err, json) ->
+cee("devices/com.nonolithlabs.cee*/#{process.argv[2]}/output")
+	.post mode: 'svmi', value: process.argv[3], (err, json) ->

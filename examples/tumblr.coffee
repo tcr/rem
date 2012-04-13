@@ -9,5 +9,5 @@ keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 tumblr = rem.load 'tumblr', '2',
 	key: keys.tumblr.key
 
-tumblr.get '/blog/staff.tumblr.com/posts/text', {}, (err, json) ->
+tumblr('blog/staff.tumblr.com/posts/text').get (err, json) ->
 	console.log json.response.blog.title + ' - ' + json.response.blog.description

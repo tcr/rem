@@ -61,6 +61,7 @@ OAuth2::delete = (url, accessToken, body, mime, cb) ->
 
 class REMAction
 	constructor: (@res, @text, fn) ->
+		@statusCode = Number(@res.statusCode)
 		try
 			if @res.headers['content-type'].replace(/\s+|;.*/g, '') in ['text/xml', 'application/xml', 'application/atom+xml']
 				@type = 'xml'
@@ -72,11 +73,11 @@ class REMAction
 				@parseRate()
 				@parseHrefs()
 
-			@statusCode = Number(@res.statusCode)
 			if @statusCode >= 400 then fn(@statusCode, @data, this)
 			else fn(0, @data, this)
 		catch e
-			fn(e, @data, this)
+			if @statusCode >= 400 then fn(@statusCode, @data, this)
+			else fn(e, @data, this)
 	
 	parseRate: ->
 		@rate =
@@ -94,14 +95,43 @@ class REMAction
 					cur = cur[k]
 				cur[level[-1..][0]] = obj
 
-class API
-	getHost = (hosturl) ->
-		try
-			hosturl = url.parse(hosturl)
-			return "#{hosturl.protocol}//#{hosturl.host}"
-		catch e
-			return null
+getHost = (hosturl) ->
+	try
+		hosturl = url.parse(hosturl)
+		return "#{hosturl.protocol}//#{hosturl.host}"
+	catch e
+		return null
 
+class Route
+	constructor: (@api, @path = '', @query = {}) ->
+
+	get: ([query]..., fn) ->
+		query = Object.merge @query, (query or {})
+		@api.request 'get', @path, query, null, null, fn
+
+	post: ([mime]..., data, fn) ->
+		unless mime?
+			mime = @api.manifest.postType ? 'form'
+		payload = switch mime
+			when 'form' then ['application/x-www-form-urlencoded', querystring.stringify(data)]
+			when 'json' then ['application/json', safeJSONStringify(data)]
+			else [mime, data]
+		@api.request 'post', @path, @query, payload..., fn
+
+	put: ([mime]..., data, fn) ->
+		unless mime?
+			mime = @api.manifest.putType ? 'form'
+		payload = switch mime
+			when 'form' then ['application/x-www-form-urlencoded', querystring.stringify(data)]
+			when 'json' then ['application/json', safeJSONStringify(data)]
+			else [mime, data]
+		@api.request 'put', @path, @query, payload..., fn
+
+	delete: (fn) ->
+		@api.request 'delete', @path, @query, fn
+
+
+class API
 	constructor: (@manifest, @opts = {}) ->
 		# Load key, secret
 		{@key, @secret, @format} = @opts
@@ -153,7 +183,9 @@ class API
 		#			txt.on 'ready', (gatekeeper) =>
 		#				@gatekeepers[host] = gatekeeper
 
-	_request: (method, path, query, mime, body, userfn) ->
+	call: (path, query) -> new Route this, path, query
+
+	request: (method, path, query, mime, body, userfn) ->
 		fn = (err, data, res) ->
 			if err then userfn(err, null)
 			else new REMAction res, data, userfn
@@ -181,7 +213,7 @@ class API
 
 		# Construct endpoint path.
 		endpoint = url.parse base + path
-		endpoint.query = {}
+		endpoint.query ?= {}
 		for qk, qv of query
 			endpoint.query[qk] = qv
 		for filter in @filters
@@ -240,27 +272,6 @@ class API
 				req.write body if body?
 				req.end()
 
-	get: (path, [query]..., fn) ->
-		query ?= {}
-		req = @_request 'get', path, query, null, null, fn
-
-	post: (path, [query]..., data, fn) ->
-		query ?= {}
-		if @manifest.postType == 'form'
-			payload = ['application/x-www-form-urlencoded', querystring.stringify(data)]
-		else
-			payload = ['application/json', safeJSONStringify(data)]
-
-		req = @_request 'post', path, query, payload..., fn
-
-	put: (path, [query]..., mime, data, fn) ->
-		query ?= {}
-		req = @_request 'put', path, query, mime, data, fn
-
-	delete: (path, [query]..., fn) ->
-		query ?= {}
-		req = @_request 'delete', path, query, fn
-
 	# Session-based Auth
 	# ------------------
 
@@ -276,6 +287,7 @@ class API
 	oauthToken: null
 	oauthTokenSecret: null
 
+	###
 	oauthCall: (path, query, fn) ->
 		url = @manifest.auth.oauth.base
 		opts = JSON.parse JSON.stringify endpoint
@@ -306,7 +318,7 @@ class API
 			res.on 'end', => fn 0, text, res
 
 		req.setHeader 'Host', opts.host
-		req.setHeader 'Accept', '*/*'
+		req.setHeader 'Accept', '*'+'/*'
 		req.setHeader 'User-Agent', USER_AGENT
 		req.setHeader 'Content-Type', mime if mime?
 		req.setHeader 'Content-Length', body.length if body?
@@ -314,6 +326,7 @@ class API
 			req.setHeader 'Cookie', cookies
 			req.write body if body?
 			req.end()
+	###
 
 	startOAuthCallback: (@oauthRedirectUri, [params]..., cb) ->
 		params ?= {}
@@ -360,7 +373,7 @@ class API
 	validateOAuth: (cb) ->
 		if not @manifest.auth.oauth.validate
 			throw new Error 'Manifest does not define mechanism for validating OAuth.'
-		@get @manifest.auth.oauth.validate, (err, data) ->
+		@request 'get', @manifest.auth.oauth.validate, {}, null, null, (err, data) ->
 			console.error err, data
 			cb err
 
@@ -403,13 +416,16 @@ class API
 
 exports.API = API
 
-exports.create = (manifest, opts) -> new API manifest, opts
+exports.create = (manifest, opts) ->
+	f = (args...) -> f.call args...
+	f.__proto__ = new API manifest, opts
+	return f
 
 # TODO also load locally
 exports.load = (name, version = '1', opts) ->
 	try
 		manifest = JSON.parse(fs.readFileSync __dirname + '/common/' + name + '.json')[version]
 		if not manifest? then throw 'Manifest not found'
+		return exports.create manifest, opts
 	catch e
 		throw new Error 'Unable to find API ' + name + '::' + version
-	return new API manifest, opts

@@ -27,11 +27,11 @@ app.use fb.oauthMiddleware '/oauth/callback/', ->
 
 	# Authenticated REST calls start here.
 
-	fb.get '/me', (err, json) ->
+	fb('me').get (err, json) ->
 		if err then console.error 'Facebook auth failed:', err; return
 		console.log 'Facebook auth succeeded. (Closing server.)'
 		app.close()
 
 		ask "Post a status update: ", /.*/, (txt) ->
-			fb.post "/me/feed", message: txt, (err, json) ->
+			fb("me/feed").post message: txt, (err, json) ->
 				console.log err, json

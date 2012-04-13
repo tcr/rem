@@ -14,8 +14,10 @@ dbox.startOAuth (url, results) ->
 	console.log "Visit:", url
 	ask "Hit enter when finished...", /.*/, ->
 		dbox.completeOAuth (results) ->
-			dbox.put '/files_put/sandbox/REM.txt', {}, 'text/plain', 'REM is hiding in your dropcube', (err, json) ->
+
+			# Authenticated calls.
+			dbox('files_put/sandbox/REM.txt').put 'text/plain', 'REM is hiding in your dropcube', (err, json) ->
 				console.log json
 
-		#dbox.get '/metadata/sandbox/', {}, (err, action) ->
-		#	console.log action.json
+			#dbox.get '/metadata/sandbox/', {}, (err, action) ->
+			#	console.log action.json

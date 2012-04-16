@@ -5,7 +5,7 @@ language idioms and manifests for popular libraries that alleviate
 differences between between configuration, authentication, and formats.
 Getting started with REM is quick and easy.
 
-REM includes [configurations for several popular APIs](https://github.com/timcameronryan/rem-common).
+REM includes [configurations for several popular APIs](https://github.com/timcameronryan/rem).
 Getting started with a particular API is as simple is specifying the name and API version:
 
     var rem = require('rem')

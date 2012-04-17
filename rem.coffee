@@ -109,6 +109,10 @@ class Route
 		query = Object.merge @query, (query or {})
 		@api.request 'get', @path, query, null, null, fn
 
+	head: ([query]..., fn) ->
+		query = Object.merge @query, (query or {})
+		@api.request 'head', @path, query, null, null, fn
+
 	post: ([mime]..., data, fn) ->
 		unless mime?
 			mime = @api.manifest.postType ? 'form'
@@ -139,7 +143,7 @@ class API
 		# Load format-specific options.
 		@format ?= 'json'
 		@manifest.formats ?= {json: {}}
-		if !@manifest.formats[@format]? then throw new Error "Format #{@format} not available."
+		if !@manifest.formats[@format]? then throw new Error "Format \"#{@format}\" not available. Please specify an available format in the options parameter."
 		@manifest = Object.merge @manifest, @manifest.formats[@format] or {}
 
 		# OAuth.
@@ -230,15 +234,16 @@ class API
 				# Signatures need to be calculated from forms
 				if @manifest.auth.oauth.version != '2.0' and mime == 'application/x-www-form-urlencoded'
 					payload = [querystring.parse body]
-				@oauth[method] endpointUrl, args..., payload..., fn
+				return @oauth[method] endpointUrl, args..., payload..., fn
 			else
-				@oauth[method] endpointUrl, args..., fn
+				return @oauth[method] endpointUrl, args..., fn
 
 		# Standard HTTP request.
 		else
 			opts = JSON.parse JSON.stringify endpoint
 			opts.method = method
 			req = (if endpoint.protocol == 'https:' then https else http).request opts
+			#TODO: if userfn
 			req.on 'response', (res) =>
 				# Attempt to follow Location: headers.
 				if res.statusCode in [301, 302, 303] and res.headers['location']
@@ -271,6 +276,7 @@ class API
 				req.setHeader 'Cookie', cookies
 				req.write body if body?
 				req.end()
+			return req
 
 	# Session-based Auth
 	# ------------------
@@ -334,13 +340,15 @@ class API
 			unless params[k]? then params[k] = v
 		if params.scope? and typeof params.scope == 'object'
 			params.scope = params.scope.join(@manifest.auth.oauth.scopeSeparator or ' ')
+		# Needed for Twitter, etc.
+		params['oauth_callback'] = oauthRedirectUri
 
 		if @manifest.auth.oauth.version != '2.0'
 			@oauth.getOAuthRequestToken params, (err, @oauthToken, @oauthTokenSecret, results) =>
 				if err
 					console.error "Error requesting OAuth token: " + JSON.stringify(err)
 				else
-					cb "#{@manifest.auth.oauth.authorizeEndpoint}?oauth_token=#{oauthToken}", results
+					cb "#{@manifest.auth.oauth.authorizeEndpoint}?oauth_callback=#{oauthRedirectUri}&oauth_token=#{oauthToken}", results
 
 		else
 			params.redirect_uri = @oauthRedirectUri
@@ -350,6 +358,8 @@ class API
 
 	completeOAuthCallback: (originalUrl, cb) ->
 		if @manifest.auth.oauth.version != '2.0'
+			parsedUrl = url.parse originalUrl, yes
+			@completeOAuth parsedUrl.query?.oauth_verifier, cb
 
 		else
 			parsedUrl = url.parse originalUrl, yes
@@ -411,6 +421,53 @@ class API
 					console.error err if err
 		cb() if cb
 
+class HttpAPI
+	request: (method, fullurl, query, mime, body, fn) ->
+		# Check robots.txt gatekeepers.
+		#if @gatekeepers[getHost base]?.isDisallowed path
+		#	fn {error: 'Robots.txt disallows this path', reason: @gatekeepers[getHost base]?.why path}, null, null
+		#	return
+
+		# Construct endpoint path.
+		endpoint = url.parse fullurl
+		endpoint.query ?= {}
+		for qk, qv of query
+			endpoint.query[qk] = qv
+		#for filter in @filters
+		#	filter endpoint
+		# Normalize endpoint.
+		endpointUrl = url.format endpoint
+		endpoint = url.parse endpointUrl
+
+		# Standard HTTP request.
+		opts = JSON.parse JSON.stringify endpoint
+		opts.method = method
+		req = (if endpoint.protocol == 'https:' then https else http).request opts
+		if fn
+			req.on 'response', (res) =>
+				# Attempt to follow Location: headers.
+				if res.statusCode in [301, 302, 303] and res.headers['location']
+					try
+						path = url.parse(res.headers['location'])?.pathname
+						@_request method, path, query, mime, body, fn
+					catch e
+					return
+
+				# Read content.
+				text = ''
+				unless res.headers['content-type'] or res.headers['content-length'] then fn 0, text, res
+				res.on 'data', (d) => text += d
+				res.on 'end', => fn 0, text, res
+
+		req.setHeader 'Host', opts.host
+		req.setHeader 'User-Agent', USER_AGENT
+		req.setHeader 'Content-Type', mime if mime?
+		req.setHeader 'Content-Length', body.length if body?
+		req.write body if body?
+		req.end()
+
+		return req
+
 # Public API
 # ----------
 
@@ -425,7 +482,9 @@ exports.create = (manifest, opts) ->
 exports.load = (name, version = '1', opts) ->
 	try
 		manifest = JSON.parse(fs.readFileSync __dirname + '/common/' + name + '.json')[version]
-		if not manifest? then throw 'Manifest not found'
-		return exports.create manifest, opts
 	catch e
 		throw new Error 'Unable to find API ' + name + '::' + version
+	if not manifest? then throw 'Manifest not found'
+	return exports.create manifest, opts
+
+exports.url = (url, query) -> new Route (new HttpAPI), url, query

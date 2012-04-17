@@ -38,7 +38,7 @@ app.use fb.oauthMiddleware '/oauth/callback/', ->
 
 		fb('me/photos').get (err, json) ->
 			rem.url(json.data[0].source).head (err, {}, res) ->
-				console.log 'Image size:', res.headers['content-type']
+				console.log 'Image size:', res.headers['content-length']
 
 			req = rem.url(json.data[0].source).get()
 			req.on 'response', (res) ->

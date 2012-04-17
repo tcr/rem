@@ -2,32 +2,35 @@ rem = require '../rem'
 fs = require 'fs'
 {ask} = require './utils'
 keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
+express = require 'express'
+
+# Launch server.
+app = express.createServer()
+app.get '/', (req, res) ->
+	res.send 'OAuth server!'
+app.listen 3000
 
 # Twitter
 # =======
+
+# NOTE! You must set a callback for your API key on the Twitter
+# developers page. This can be a dummy value if you choose (the
+# value set in startOAuthCallback takes precedence). Not having
+# this field set locks your API key to oob mode.
 
 tw = rem.load 'twitter', '1',
 	key: keys.twitter.key
 	secret: keys.twitter.secret
 
-# Unauthenticated REST calls.
-tw('search').get {q: 'blue angels', rpp: 5}, (err, json) ->
-	console.log 'Search: # of results for blue angels is', json.results.length
+# Get initial url.
+tw.startOAuthCallback "http://localhost:3000/oauth/callback/", (url) ->
+	console.log 'Visit:', url
 
-tw.startOAuth (url, results) ->
-	console.log "Visit:", url
-	
-	ask "Please enter the verification code: ", /[\w\d]+/, (verifier) ->
+# Use middleware to intercept OAuth calls.
+app.use tw.oauthMiddleware '/oauth/callback/', ->
+	console.log 'Authenticated with Twitter.'
 
-		tw.completeOAuth verifier, (results) ->
-			console.log 'Authorized.'
-
-			# ...and authenticated REST calls.
-			tw('statuses/home_timeline').get (err, json) ->
-				for twt in json
-					console.log '[TWITTER]', twt.text
-
-
-			ask "Enter a status to tweet: ", /.*/, (txt) ->
-				tw('statuses/update').post {status: txt}, (err, json) ->
-					console.log err, json
+	# Authenticated REST calls.
+	tw('statuses/home_timeline').get (err, json) ->
+		for twt in json
+			console.log '[TWITTER]', twt.text

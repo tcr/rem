@@ -7,7 +7,7 @@ keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 # Launch server.
 app = express.createServer()
 app.get '/', (req, res) ->
-	res.send 'Facebook program server!'
+	res.send 'OAuth server!'
 app.listen 3000
 
 # Facebook
@@ -32,6 +32,15 @@ app.use fb.oauthMiddleware '/oauth/callback/', ->
 		console.log 'Facebook auth succeeded. (Closing server.)'
 		app.close()
 
-		ask "Post a status update: ", /.*/, (txt) ->
-			fb("me/feed").post message: txt, (err, json) ->
-				console.log err, json
+		#ask "Post a status update: ", /.*/, (txt) ->
+		#	fb("me/feed").post message: txt, (err, json) ->
+		#		console.log err, json
+
+		fb('me/photos').get (err, json) ->
+			rem.url(json.data[0].source).head (err, {}, res) ->
+				console.log 'Image size:', res.headers['content-type']
+
+			req = rem.url(json.data[0].source).get()
+			req.on 'response', (res) ->
+				res.pipe(fs.createWriteStream("firstimage.jpg"))
+				res.on 'end', -> console.log 'First image saved locally.'

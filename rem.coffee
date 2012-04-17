@@ -334,7 +334,8 @@ class API
 			req.end()
 	###
 
-	startOAuthCallback: (@oauthRedirectUri, [params]..., cb) ->
+	startOAuthCallback: (oauthRedirectUri, [params]..., cb) ->
+		@oauthRedirectUri = oauthRedirectUri
 		params ?= {}
 		for k, v of @manifest.auth.oauth.params
 			unless params[k]? then params[k] = v
@@ -366,8 +367,9 @@ class API
 			@oauth.getOAuthAccessToken parsedUrl.query?.code, redirect_uri: @oauthRedirectUri, (err, @oauthToken, @oauthRefreshToken) =>
 				if err
 					console.error 'Error authorizing OAuth2 endpoint:', JSON.stringify err
+					cb err
 				else
-					cb()
+					cb 0
 
 	completeOAuth: ([verifier]..., cb) ->
 		if not verifier? and @manifest.auth.oauth.oobVerifier
@@ -377,8 +379,9 @@ class API
 		@oauth.getOAuthAccessToken @oauthToken, @oauthTokenSecret, verifier, (err, @oauthToken, @oauthTokenSecret, results) =>
 			if err
 				console.error "Error authorizing OAuth endpoint: " + JSON.stringify(err)
+				cb err
 			else
-				cb results
+				cb err, results
 
 	validateOAuth: (cb) ->
 		if not @manifest.auth.oauth.validate
@@ -390,8 +393,8 @@ class API
 	oauthMiddleware: (path, cb) ->
 		return (req, res, next) =>
 			if req.path == path
-				@completeOAuthCallback req.url, cb
-				res.send 'OAuth2 verified.'
+				@completeOAuthCallback req.url, (results) ->
+					cb req, res, next
 			else
 				next()
 

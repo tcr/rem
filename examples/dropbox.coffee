@@ -22,9 +22,9 @@ dbox.startOAuthCallback "http://localhost:3000/oauth/callback/", (url) ->
 	console.log 'Visit:', url
 
 # Use middleware to intercept OAuth calls.
-app.use dbox.oauthMiddleware '/oauth/callback/', ->
-	console.log 'Authenticated with Dropbox.'
+app.use dbox.oauthMiddleware '/oauth/callback/', (req, res, next) ->
+	res.send "Authenticated with Dropbox."
 
 	# Authenticated calls.
 	dbox('files_put/sandbox/REM.txt').put 'text/plain', 'REM is hiding in your dropcube', (err, json) ->
-		console.log json
+		console.log err, json

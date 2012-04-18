@@ -13,7 +13,6 @@ https = require 'https'
 http = require 'http'
 {OAuth, OAuth2} = require("oauth")
 util = require 'util'
-url = require 'url'
 fs = require 'fs'
 {Cookie, CookieJar} = require 'tough-cookie'
 
@@ -22,11 +21,21 @@ libxmljs = null
 
 USER_AGENT = 'Mozilla/5.0 (compatible; REMbot/1.0; +http://rem.tcr.io/)'
 
-Object.merge = (a, b) ->
-	c = {}
-	for k, v of a then c[k] = v
-	for k, v of b then c[k] = v
-	return c
+Object.merge = (base, args...) ->
+	for arg in args
+		for k, v of arg then base[k] = v
+	return base
+
+class Url 
+	constructor: (str) ->
+		{@protocol, @auth, @hostname, @port, @pathname, @query, @hash} = require('url').parse str, yes
+		@query ?= {}
+
+	clone: -> new Url @toString()
+	toString: -> require('url').format this
+	toOptions: ->
+		{hostname, port, path} = require('url').parse @toString()
+		return {hostname, port, path}
 
 # Lib functions
 # -------------
@@ -55,6 +64,43 @@ OAuth2::put = (url, accessToken, body, mime, cb) ->
 	@_request "PUT", url, {"Content-Type": mime}, body, accessToken, cb
 OAuth2::delete = (url, accessToken, body, mime, cb) ->
 	@_request "DELETE", url, {}, "", accessToken, cb
+
+sendHttpRequest = (method, endpointUrl, mime, body, handlers = {}) ->
+	# Create HTTP(S) request.
+	endpoint = new Url endpointUrl
+	opts = endpoint.toOptions()
+	opts.method = method
+	req = (if endpoint.protocol == 'https:' then https else http).request opts
+
+	# Request response handler.
+	if handlers.data
+		req.on 'response', (res) =>
+			# Attempt to follow Location: headers.
+			if res.statusCode in [301, 302, 303] and res.headers['location']
+				try
+					request method, res.headers['location'], mime, body, opts
+				catch e
+				return
+
+			# Read content.
+			text = ''
+			unless res.headers['content-type'] or res.headers['content-length'] then handlers.data 0, text, res
+			res.on 'data', (d) => text += d
+			res.on 'end', => handlers.data 0, text, res
+
+	# Send request.
+	req.setHeader 'Host', opts.hostname
+	req.setHeader 'User-Agent', USER_AGENT
+	req.setHeader 'Content-Type', mime if mime?
+	req.setHeader 'Content-Length', body.length if body?
+	# Header callback.
+	handlers.headers ?= (req, next) -> next()
+	handlers.headers req, ->
+		req.write body if body?
+		req.end()
+
+	# Return request emitter.
+	return req
 
 # REM Classes
 # -----------
@@ -95,45 +141,41 @@ class REMAction
 					cur = cur[k]
 				cur[level[-1..][0]] = obj
 
-getHost = (hosturl) ->
-	try
-		hosturl = url.parse(hosturl)
-		return "#{hosturl.protocol}//#{hosturl.host}"
-	catch e
-		return null
+# Route for a given path or URL.
 
 class Route
-	constructor: (@api, @path = '', @query = {}) ->
+	constructor: (@url, @defaultBodyMime = 'form', @send) ->
 
 	get: ([query]..., fn) ->
-		query = Object.merge @query, (query or {})
-		@api.request 'get', @path, query, null, null, fn
+		url = @url.clone()
+		Object.merge url.query, (query or {})
+		return @send 'get', url.toString(), null, null, data: fn
 
 	head: ([query]..., fn) ->
-		query = Object.merge @query, (query or {})
-		@api.request 'head', @path, query, null, null, fn
+		url = @url.clone()
+		Object.merge url.query, (query or {})
+		return @send 'head', url.toString(), null, null, data: fn
 
 	post: ([mime]..., data, fn) ->
-		unless mime?
-			mime = @api.manifest.postType ? 'form'
+		mime ?= @defaultBodyMime
 		payload = switch mime
 			when 'form' then ['application/x-www-form-urlencoded', querystring.stringify(data)]
 			when 'json' then ['application/json', safeJSONStringify(data)]
 			else [mime, data]
-		@api.request 'post', @path, @query, payload..., fn
+		return @send 'post', @url.toString(), payload..., data: fn
 
 	put: ([mime]..., data, fn) ->
-		unless mime?
-			mime = @api.manifest.putType ? 'form'
+		mime ?= @defaultBodyMime
 		payload = switch mime
 			when 'form' then ['application/x-www-form-urlencoded', querystring.stringify(data)]
 			when 'json' then ['application/json', safeJSONStringify(data)]
 			else [mime, data]
-		@api.request 'put', @path, @query, payload..., fn
+		return @send 'put', @url.toString(), payload..., data: fn
 
 	delete: (fn) ->
-		@api.request 'delete', @path, @query, fn
+		return @send 'delete', @url.toString(), null, null, data: fn
 
+# A REM API.
 
 class API
 	constructor: (@manifest, @opts = {}) ->
@@ -144,7 +186,7 @@ class API
 		@format ?= 'json'
 		@manifest.formats ?= {json: {}}
 		if !@manifest.formats[@format]? then throw new Error "Format \"#{@format}\" not available. Please specify an available format in the options parameter."
-		@manifest = Object.merge @manifest, @manifest.formats[@format] or {}
+		@manifest = Object.merge {}, @manifest, @manifest.formats[@format] or {}
 
 		# OAuth.
 		if 'oauth' of (@manifest.auth or {})
@@ -164,121 +206,84 @@ class API
 			@filters.push (endpoint) => endpoint.pathname = @manifest.basepath + endpoint.pathname
 		if @manifest.suffix?
 			@filters.push (endpoint) => endpoint.pathname += @manifest.suffix
-		if @manifest.keyAsParam?
-			@filters.push (endpoint) => endpoint.query[@manifest.keyAsParam] = @key
+		if @manifest.configParams?
+			@filters.push (endpoint) =>
+				for ck, cv of @manifest.configParams then endpoint.query[ck] = @opts[cv]
 		if @manifest.params?
 			@filters.push (endpoint) =>
 				for qk, qv of @manifest.params then endpoint.query[qk] = qv
 
 		# Get list of hosts from manifest.
-		if typeof @manifest.base == 'object'
-			@hosts = for v in @manifest.base
-				getHost if typeof v == 'object' then v[1] else v
-		else 
-			@hosts = [getHost @manifest.base]
-		# Initialize robots.txt crawlers.
-		# Todo: add robots.txt support?
-		@gatekeepers = {}
-		#if @manifest.robotsTxt
-		#	for host in @hosts
-		#		do (host) =>
-		#			txt = robots "#{host}/robots.txt", USER_AGENT
-		#			txt.on 'error', (err) -> # ignore
-		#			txt.on 'ready', (gatekeeper) =>
-		#				@gatekeepers[host] = gatekeeper
+		@hosts = []
+		for v in [if typeof @manifest.base == 'string' then [/^.*$/, @manifest.base] else @manifest.base]
+			url = new Url(if typeof v == 'object' then v[1] else v)
+			@hosts.push url.protocol + '//' + url.hostname
 
-	call: (path, query) -> new Route this, path, query
+	call: (pathname, query) ->
+		url = new Url('')
+		url.pathname = pathname
+		url.query = query
 
-	request: (method, path, query, mime, body, userfn) ->
-		fn = (err, data, res) ->
-			if err then userfn(err, null)
-			else new REMAction res, data, userfn
+		# Return a new route with data preparation.
+		return new Route url, @manifest.uploadFormat, (method, path, mime, body, handlers = {}) =>
+			datahandler = (err, data, res) ->
+				if err then handlers.data(err, null)
+				else new REMAction res, data, handlers.data
 
-		# Normalize path.
-		if path[0] != '/'
-			path = '/' + path
-		# Determine host.
-		if typeof @manifest.base == 'string'
-			base = @manifest.base
-		else
-			base = ''
-			for pat in @manifest.base
-				if typeof pat == 'string'
-					base = pat
-					break
-				if path.match new RegExp(pat[0])
-					base = pat[1]
-					break
-
-		# Check robots.txt gatekeepers.
-		if @gatekeepers[getHost base]?.isDisallowed path
-			fn {error: 'Robots.txt disallows this path', reason: @gatekeepers[getHost base]?.why path}, null, null
-			return
-
-		# Construct endpoint path.
-		endpoint = url.parse base + path
-		delete endpoint.search
-		endpoint.query ?= {}
-		if typeof endpoint.query == 'string' then endpoint.query = querystring.parse(endpoint.query)
-		for qk, qv of query
-			endpoint.query[qk] = qv
-		for filter in @filters
-			filter endpoint
-		# Normalize endpoint.
-		endpointUrl = url.format endpoint
-		endpoint = url.parse endpointUrl
-
-		# OAuth request.
-		if @oauth
-			args = if @manifest.auth.oauth.version != '2.0' then [@oauthToken, @oauthTokenSecret] else [@oauthToken]
-			if method in ['put', 'post']
-				payload = [body, mime]
-				# Signatures need to be calculated from forms
-				if @manifest.auth.oauth.version != '2.0' and mime == 'application/x-www-form-urlencoded'
-					payload = [querystring.parse body]
-				return @oauth[method] endpointUrl, args..., payload..., fn
+			# Normalize path.
+			if path[0] != '/'
+				path = '/' + path
+			# path host.
+			if typeof @manifest.base == 'string'
+				base = @manifest.base
 			else
-				return @oauth[method] endpointUrl, args..., fn
+				base = ''
+				for patt in @manifest.base
+					if typeof patt == 'string'
+						base = patt
+						break
+					if path.match new RegExp(patt[0])
+						base = patt[1]
+						break
 
-		# Standard HTTP request.
-		else
-			opts = JSON.parse JSON.stringify endpoint
-			opts.method = method
-			req = (if endpoint.protocol == 'https:' then https else http).request opts
-			#TODO: if userfn
-			req.on 'response', (res) =>
-				# Attempt to follow Location: headers.
-				if res.statusCode in [301, 302, 303] and res.headers['location']
-					try
-						path = url.parse(res.headers['location'])?.pathname
-						@_request method, path, query, mime, body, fn
-					catch e
-					return
+			# Construct endpoint path.
+			endpoint = new Url base
+			endpoint.pathname = endpoint.pathname.replace(/\/$/, '') + path
+			for filter in @filters
+				filter endpoint
 
-				# Read cookies.
-				if res.headers['set-cookie'] instanceof Array
-					cookies = res.headers['set-cookie'].map Cookie.parse
-				else if res.headers['set-cookie']?
-					cookies = [Cookie.parse(res.headers['set-cookie'])]
-				for cookie in (cookies or []) when cookie.key in (@manifest.auth?.session?.cookies or [])
-					@cookies.setCookie cookie, endpointUrl, (err, r) ->
-						console.error err if err
+			if @oauth
+				# OAuth request.
+				args = if @manifest.auth.oauth.version != '2.0' then [@oauthToken, @oauthTokenSecret] else [@oauthToken]
+				if method in ['put', 'post']
+					payload = [body, mime]
+					# Signatures need to be calculated from forms
+					if @manifest.auth.oauth.version != '2.0' and mime == 'application/x-www-form-urlencoded'
+						payload = [querystring.parse body]
+					return @oauth[method] endpoint.toString(), args..., payload..., datahandler
+				else
+					return @oauth[method] endpoint.toString(), args..., datahandler
 
-				# Read content.
-				text = ''
-				unless res.headers['content-type'] or res.headers['content-length'] then fn 0, text, res
-				res.on 'data', (d) => text += d
-				res.on 'end', => fn 0, text, res
+			else
+				# HTTP Request.
+				sendHttpRequest method, endpoint.toString(), mime, body,
+					headers: (req, next) =>
+						@cookies.getCookieString endpoint.toString(), (err, cookies) =>
+							req.setHeader 'Cookie', cookies
+							next()
 
-			req.setHeader 'Host', opts.host
-			req.setHeader 'User-Agent', USER_AGENT
-			req.setHeader 'Content-Type', mime if mime?
-			req.setHeader 'Content-Length', body.length if body?
-			@cookies.getCookieString endpointUrl, (err, cookies) =>
-				req.setHeader 'Cookie', cookies
-				req.write body if body?
-				req.end()
-			return req
+					data: (err, data, res) =>
+						# Read cookies.
+						if res.headers['set-cookie'] instanceof Array
+							cookies = res.headers['set-cookie'].map Cookie.parse
+						else if res.headers['set-cookie']?
+							cookies = [Cookie.parse(res.headers['set-cookie'])]
+						for cookie in (cookies or []) when cookie.key in (@manifest.auth?.session?.cookies or [])
+							@cookies.setCookie cookie, endpoint.toString(), (err, r) ->
+								console.error err if err
+
+						# Continue.
+						datahandler err, data, res
 
 	# Root request shorthand
 	# ----------------------
@@ -305,47 +310,6 @@ class API
 	oauthToken: null
 	oauthTokenSecret: null
 
-	###
-	oauthCall: (path, query, fn) ->
-		url = @manifest.auth.oauth.base
-		opts = JSON.parse JSON.stringify endpoint
-		opts.method = method
-		req = (if endpoint.protocol == 'https:' then https else http).request opts
-		req.on 'response', (res) =>
-			# Attempt to follow Location: headers.
-			if res.statusCode in [301, 302, 303] and res.headers['location']
-				try
-					path = url.parse(res.headers['location'])?.pathname
-					@_request method, path, query, mime, body, fn
-				catch e
-				return
-
-			# Read cookies.
-			if res.headers['set-cookie'] instanceof Array
-				cookies = res.headers['set-cookie'].map Cookie.parse
-			else if res.headers['set-cookie']?
-				cookies = [Cookie.parse(res.headers['set-cookie'])]
-			for cookie in (cookies or []) when cookie.key in (@manifest.auth?.session?.cookies or [])
-				@cookies.setCookie cookie, endpointUrl, (err, r) ->
-					console.error err if err
-
-			# Read content.
-			text = ''
-			unless res.headers['content-type'] or res.headers['content-length'] then fn 0, text, res
-			res.on 'data', (d) => text += d
-			res.on 'end', => fn 0, text, res
-
-		req.setHeader 'Host', opts.host
-		req.setHeader 'Accept', '*'+'/*'
-		req.setHeader 'User-Agent', USER_AGENT
-		req.setHeader 'Content-Type', mime if mime?
-		req.setHeader 'Content-Length', body.length if body?
-		@cookies.getCookieString endpointUrl, (err, cookies) =>
-			req.setHeader 'Cookie', cookies
-			req.write body if body?
-			req.end()
-	###
-
 	startOAuthCallback: (oauthRedirectUri, [params]..., cb) ->
 		@oauthRedirectUri = oauthRedirectUri
 		params ?= {}
@@ -371,12 +335,10 @@ class API
 
 	completeOAuthCallback: (originalUrl, cb) ->
 		if @manifest.auth.oauth.version != '2.0'
-			parsedUrl = url.parse originalUrl, yes
-			@completeOAuth parsedUrl.query?.oauth_verifier, cb
+			@completeOAuth new Url(originalUrl).query.oauth_verifier, cb
 
 		else
-			parsedUrl = url.parse originalUrl, yes
-			@oauth.getOAuthAccessToken parsedUrl.query?.code, redirect_uri: @oauthRedirectUri, (err, @oauthToken, @oauthRefreshToken) =>
+			@oauth.getOAuthAccessToken new Url(originalUrl).query.code, redirect_uri: @oauthRedirectUri, (err, @oauthToken, @oauthRefreshToken) =>
 				if err
 					console.error 'Error authorizing OAuth2 endpoint:', JSON.stringify err
 					cb err
@@ -436,55 +398,6 @@ class API
 					console.error err if err
 		cb() if cb
 
-class HttpAPI
-	request: (method, fullurl, query, mime, body, fn) ->
-		# Check robots.txt gatekeepers.
-		#if @gatekeepers[getHost base]?.isDisallowed path
-		#	fn {error: 'Robots.txt disallows this path', reason: @gatekeepers[getHost base]?.why path}, null, null
-		#	return
-
-		# Construct endpoint path.
-		endpoint = url.parse fullurl
-		delete endpoint.search
-		endpoint.query ?= {}
-		if typeof endpoint.query == 'string' then endpoint.query = querystring.parse(endpoint.query)
-		for qk, qv of query
-			endpoint.query[qk] = qv
-		#for filter in @filters
-		#	filter endpoint
-		# Normalize endpoint.
-		endpointUrl = url.format endpoint
-		endpoint = url.parse endpointUrl
-
-		# Standard HTTP request.
-		opts = JSON.parse JSON.stringify endpoint
-		opts.method = method
-		req = (if endpoint.protocol == 'https:' then https else http).request opts
-		if fn
-			req.on 'response', (res) =>
-				# Attempt to follow Location: headers.
-				if res.statusCode in [301, 302, 303] and res.headers['location']
-					try
-						path = url.parse(res.headers['location'])?.pathname
-						@_request method, path, query, mime, body, fn
-					catch e
-					return
-
-				# Read content.
-				text = ''
-				unless res.headers['content-type'] or res.headers['content-length'] then fn 0, text, res
-				res.on 'data', (d) => text += d
-				res.on 'end', => fn 0, text, res
-
-		req.setHeader 'Host', opts.host
-		req.setHeader 'User-Agent', USER_AGENT
-		req.setHeader 'Content-Type', mime if mime?
-		req.setHeader 'Content-Length', body.length if body?
-		req.write body if body?
-		req.end()
-
-		return req
-
 # Public API
 # ----------
 
@@ -504,4 +417,7 @@ exports.load = (name, version = '1', opts) ->
 	if not manifest? then throw 'Manifest not found'
 	return exports.create manifest, opts
 
-exports.url = (url, query) -> new Route (new HttpAPI), url, query
+exports.url = (url, query = {}) ->
+	url = new Url url
+	Object.merge url.query, query
+	return new Route url, 'form', sendHttpRequest

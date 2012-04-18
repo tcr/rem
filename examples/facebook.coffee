@@ -23,7 +23,8 @@ fb.startOAuthCallback "http://localhost:3000/oauth/callback/",
 		console.log 'Visit:', url
 
 # Use middleware to intercept OAuth calls.
-app.use fb.oauthMiddleware '/oauth/callback/', ->
+app.use fb.oauthMiddleware '/oauth/callback/', (req, res, next) ->
+	res.send "Authenticated with Facebook."
 
 	# Authenticated REST calls start here.
 
@@ -38,6 +39,7 @@ app.use fb.oauthMiddleware '/oauth/callback/', ->
 
 		fb('me/photos').get (err, json) ->
 			rem.url(json.data[0].source).head (err, {}, res) ->
+				console.log res.headers
 				console.log 'Image size:', res.headers['content-length']
 
 			req = rem.url(json.data[0].source).get()

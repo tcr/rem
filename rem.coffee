@@ -217,7 +217,9 @@ class API
 
 		# Construct endpoint path.
 		endpoint = url.parse base + path
+		delete endpoint.search
 		endpoint.query ?= {}
+		if typeof endpoint.query == 'string' then endpoint.query = querystring.parse(endpoint.query)
 		for qk, qv of query
 			endpoint.query[qk] = qv
 		for filter in @filters
@@ -277,6 +279,16 @@ class API
 				req.write body if body?
 				req.end()
 			return req
+
+	# Root request shorthand
+	# ----------------------
+
+	get: (args...) -> @('').get args...
+	post: (args...) -> @('').post args...
+	delete: (args...) -> @('').delete args...
+	head: (args...) -> @('').head args...
+	put: (args...) -> @('').put args...
+	patch: (args...) -> @('').patch args...
 
 	# Session-based Auth
 	# ------------------
@@ -433,7 +445,9 @@ class HttpAPI
 
 		# Construct endpoint path.
 		endpoint = url.parse fullurl
+		delete endpoint.search
 		endpoint.query ?= {}
+		if typeof endpoint.query == 'string' then endpoint.query = querystring.parse(endpoint.query)
 		for qk, qv of query
 			endpoint.query[qk] = qv
 		#for filter in @filters

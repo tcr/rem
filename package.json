@@ -1,6 +1,6 @@
 { "name": "rem"
 , "description": "A library for getting started with REST APIs."
-, "version": "0.1.1"
+, "version": "0.1.2"
 , "author"        : "Tim Cameron Ryan <tim@timryan.org>"
 , "contributors"  : []
 , "dependencies"  : {

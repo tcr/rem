@@ -1,6 +1,8 @@
 rem = require '../rem'
 fs = require 'fs'
-{ask} = require './utils'
+read = require 'read'
+express = require 'express'
+
 keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 
 # DuckDuckGo
@@ -8,5 +10,5 @@ keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 
 ddg = rem.load 'duckduckgo', '1'
 
-ddg().get q: 'java', (err, json) ->
+ddg.get q: 'java', (err, json, obj) ->
 	console.log 'Search for "java":', json.Heading

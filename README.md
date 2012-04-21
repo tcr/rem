@@ -11,7 +11,7 @@ Getting started with a particular API is as simple is specifying the name and AP
 ```javascript
 var rem = require('rem')
 var tw = rem.load('twitter', 1, {key: 'KEY', secret: 'SECRET'})
-// Get started with https://api.twitter.com/1
+// Get started with version 1 of the Twitter API
 ```
 
 You can make API requests simply:
@@ -30,10 +30,10 @@ OAuth authentication parameters are already included. You can authenticate by us
 connect middleware, or out-of-band modes when available:
 
 ```javascript
-tw.startOAuth(function (url, results) {
+tw.auth.start(function (url, results) {
 	console.log("Visit:", url)
-	require('./examples/utils').ask("Verification code: ", /[\w\d]+/, function (verifier) {
-	    tw.completeOAuth(verifier, function (results) {
+	require('read')({prompt: "Verification code: "}, function (err, verifier) {
+	    tw.oauth.complete(verifier, function (results) {
 	        // Authenticated calls with the Twitter API can be done here.
 	    })
 	})
@@ -43,7 +43,7 @@ tw.startOAuth(function (url, results) {
 You can also define and load your own manifests for your own APIs:
 
 ```javascript
-var api = rem.create({base: 'http://cozy.api/v1'}, {format: 'json'})
+var api = rem.create({base: 'http://cozy.api/v1', ...}, {format: 'json'})
 ```
 
 ## Examples

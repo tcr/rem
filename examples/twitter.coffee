@@ -1,8 +1,11 @@
 rem = require '../rem'
 fs = require 'fs'
-{ask} = require './utils'
-keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
+read = require 'read'
 express = require 'express'
+
+keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
+
+CALLBACK_URL = "http://localhost:3000/oauth/callback/"
 
 # Launch server.
 app = express.createServer()
@@ -23,14 +26,20 @@ tw = rem.load 'twitter', '1',
 	secret: keys.twitter.secret
 
 # Get initial url.
-tw.startOAuthCallback "http://localhost:3000/oauth/callback/", (url) ->
+tw.auth.startCallback CALLBACK_URL, (url) ->
 	console.log 'Visit:', url
+# Use middleware to intercept OAuth callbacks.
+# For this demo, when authenticated, we'll close the server and run an example.
+app.use tw.auth.middleware CALLBACK_URL, (req, res, next) ->
+	res.end "Authenticated with Twitter. (Closing server.)"
+	req.socket.destroy(); app.close()
+	process.nextTick example
 
-# Use middleware to intercept OAuth calls.
-app.use tw.oauthMiddleware '/oauth/callback/', ->
-	console.log 'Authenticated with Twitter.'
+# Authenticated REST demo.
+example = ->
 
-	# Authenticated REST calls.
+	# Get your newest tweets.
+	console.log 'Latest tweets:'
 	tw('statuses/home_timeline').get (err, json) ->
 		for twt in json
-			console.log '[TWITTER]', twt.text
+			console.log twt.text

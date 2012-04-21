@@ -1,8 +1,11 @@
 rem = require '../rem'
 fs = require 'fs'
+read = require 'read'
 express = require 'express'
-{ask} = require './utils'
+
 keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
+
+CALLBACK_URL = "http://localhost:3000/oauth/callback/"
 
 # Launch server.
 app = express.createServer()
@@ -18,16 +21,17 @@ github = rem.load 'github', '1',
 	secret: keys.github.secret
 
 # Get initial url.
-github.startOAuthCallback "http://localhost:3000/oauth/callback/",
-	scope: ["user", "repo"], (url) ->
-		console.log 'Visit:', url
+github.auth.startCallback CALLBACK_URL, scope: ["user", "repo"], (url) ->
+	console.log 'Visit:', url
+# Use middleware to intercept OAuth callbacks.
+# For this demo, when authenticated, we'll close the server and run an example.
+app.use github.auth.middleware CALLBACK_URL, (req, res, next) ->
+	res.send "Authenticated with Github. (Closing server.)"
+	req.socket.destroy(); app.close()
+	process.nextTick example
 
-# Use middleware to intercept OAuth calls.
-app.use github.oauthMiddleware '/oauth/callback/', (req, res, next) ->
-	res.send "Authenticated with Github."
-
-	# Authenticated REST calls start here.
-
+# Authenticated REST demo.
+example = ->
 	console.log 'Your gists:'
 	github('user').get (err, profile) ->
 		github("users/#{profile.login}/gists").get (err, json) ->

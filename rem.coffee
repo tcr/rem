@@ -145,10 +145,10 @@ class Route
 		return @send 'head', url.toString(), null, null, fn
 
 	post: ([mime]..., data, fn = null) ->
-		return @send 'post', @url.toString(), [mime ? @defaultBodyMime, data], fn
+		return @send 'post', @url.toString(), mime ? @defaultBodyMime, data, fn
 
 	put: ([mime]..., data, fn = null) ->
-		return @send 'put', @url.toString(), [mime ? @defaultBodyMime, data], fn
+		return @send 'put', @url.toString(), mime ? @defaultBodyMime, data, fn
 
 	delete: (fn = null) ->
 		return @send 'delete', @url.toString(), null, null, fn
@@ -207,8 +207,10 @@ class API
 							['application/json', safeJSONStringify(body)]
 						else
 							[mime, body]
+				# Normalize path.
+				path = path.replace(/^(?!\/)/, '/')
 
-				# Determine base to use.
+				# Determine base that matches path name.
 				if typeof @manifest.base == 'string'
 					base = @manifest.base
 				else
@@ -221,8 +223,7 @@ class API
 							base = patt[1]
 							break
 				# Construct complete endpoint path.
-				endpoint = new Url base
-				endpoint.pathname = endpoint.pathname.replace(/\/$/, '') + path.replace(/^(?!\/)/, '/')
+				endpoint = new Url base + path
 				# Apply manifest filters.
 				for filter in @filters
 					filter endpoint
@@ -232,10 +233,10 @@ class API
 					# User callbacks.
 					return unless cb
 					if err
-						handlers.data(err, null, null)
+						cb(err, null, null)
 					else
 						media = new HyperMedia res, data
-						handlers.data media.errorCode, media.data, media
+						cb media.errorCode, media.data, media
 
 	# Root request shorthand.
 
@@ -276,7 +277,7 @@ class CookieAuthentication
 	constructor: (@api, @opts) ->
 		@isAuthenticated = no
 		# Create cookie jar.
-		@cookies = new CookieJar()
+		@jar = new CookieJar()
 		# Get list of hosts from manifest.
 		@hosts = []
 		for v in [if typeof @api.manifest.base == 'string' then [/^.*$/, @api.manifest.base] else @api.manifest.base]
@@ -287,7 +288,7 @@ class CookieAuthentication
 		# HTTP Request.
 		sendHttpRequest method, endpointUrl, mime, body,
 			headers: (req, next) =>
-				@cookies.getCookieString endpointUrl, (err, cookies) =>
+				@jar.getCookieString endpointUrl, (err, cookies) =>
 					req.setHeader 'Cookie', cookies
 					next()
 
@@ -308,7 +309,7 @@ class CookieAuthentication
 	loadState: (data, next) ->
 		for host of (data.cookies or {})
 			for cookie in data.cookies[host]
-				@cookies.setCookie cookie, host, (err) ->
+				@jar.setCookie cookie, host, (err) ->
 					console.error err if err
 		next?()
 
@@ -342,17 +343,22 @@ class OAuth1Authentication
 	constructor: (@api, @opts) ->
 		@isAuthenticated = no
 		@oauth = new nodeoauth.OAuth @opts.requestEndpoint, @opts.accessEndpoint,
-			@key, @secret, opts.version or '1.0', @oauthRedirectUri, "HMAC-SHA1", null,
+			@api.key, @api.secret, opts.version or '1.0', @oauthRedirectUri, "HMAC-SHA1", null,
 			{'User-Agent': USER_AGENT, "Accept": "*/*", "Connection": "close", "User-Agent": "Node authentication"}
 
 	processRequest: (method, endpointUrl, mime, body, cb) ->
 		# OAuth request.
-		payload = []
-		if method in ['put', 'post']
+		payload = if method in ['put', 'post']
 			# Signatures need to be calculated from forms; let node-oauth do that
 			if mime == 'application/x-www-form-urlencoded' then [querystring.parse body]
 			else [body, mime]
-		return @oauth[method] endpoint.toString(), @oauthToken, @oauthTokenSecret, payload..., datahandler
+		else []
+		return @oauth[method] endpointUrl, @oauthToken, @oauthTokenSecret, payload..., cb
+
+	# State.
+	oauthRedirectUri: null
+	oauthToken: null
+	oauthTokenSecret: null
 
 	loadState: (data, next = null) ->
 		{@oauthToken, @oauthTokenSecret, @oauthRedirectUri} = data
@@ -365,30 +371,33 @@ class OAuth1Authentication
 			@oauthTokenSecret
 		}
 
-	oauthRedirectUri: null
-	oauthToken: null
-	oauthTokenSecret: null
-
 	startCallback: (oauthRedirectUri, [params]..., cb) ->
 		@oauthRedirectUri = oauthRedirectUri
 		params = Object.merge (params or {}), (@opts.params or {})
 		if params.scope? and typeof params.scope == 'object'
 			params.scope = params.scope.join(@opts.scopeSeparator or ' ')
-
 		# Needed for Twitter, etc.
-		params['oauth_callback'] = oauthRedirectUri
+		if oauthRedirectUri? then params['oauth_callback'] = oauthRedirectUri
 
 		@oauth.getOAuthRequestToken params, (err, @oauthToken, @oauthTokenSecret, results) =>
 			if err
 				console.error "Error requesting OAuth token: " + JSON.stringify(err)
 			else
-				cb "#{@manifest.auth.oauth.authorizeEndpoint}?oauth_callback=#{oauthRedirectUri}&oauth_token=#{oauthToken}", results
+				authurl = new Url(@opts.authorizeEndpoint)
+				authurl.query.oauth_token = oauthToken
+				if oauthRedirectUri? then authurl.query.oauth_callback = oauthRedirectUri
+				cb authurl.toString(), results
 
-	startVerifier: (cb) -> @startCallback @opts.emptyCallback or `undefined`, cb
+	start: (cb) ->
+		if not @opts.oob
+			console.error 'Out-of-band OAuth for this API is not permitted.'
+			return
+		@startCallback @opts.oobCallback or `undefined`, cb
 
-	completeCallback: (originalUrl, cb) -> @completeVerifier new Url(originalUrl).query.oauth_verifier, cb
+	completeCallback: (originalUrl, cb) ->
+		@complete new Url(originalUrl).query.oauth_verifier, cb
 
-	completeVerifier: ([verifier]..., cb) ->
+	complete: ([verifier]..., cb) ->
 		if not verifier? and @opts.oobVerifier
 			console.error 'Out-of-band OAuth for this API requires a verification code.'
 			return
@@ -408,10 +417,11 @@ class OAuth1Authentication
 			console.error err, data
 			cb err
 
-	middleware: (path, cb) ->
+	middleware: (url, cb) ->
+		path = new Url(url).pathname
 		return (req, res, next) =>
-			next() unless req.path == path
-			@completeCallback req.url, (results) -> cb req, res, next
+			unless req.path == path then next()
+			else @completeCallback req.url, (results) -> cb req, res, next
 
 #oldreq = OAuth2::_request
 #OAuth2::_request = (method, url, headers, body, accessToken, cb) ->
@@ -435,11 +445,15 @@ nodeoauth.OAuth2::delete = (url, accessToken, body, mime, cb) ->
 class OAuth2Authentication
 	constructor: (@api, @opts) ->
 		@isAuthenticated = no
-		@oauth = new nodeoauth.OAuth2 @key, @secret, @opts.base
+		@oauth = new nodeoauth.OAuth2 @api.key, @api.secret, @opts.base
 
 	processRequest: (method, endpointUrl, mime, body, cb) ->
-		payload if method in ['put', 'post'] then [body, mime] else []
-		return @oauth[method] endpoint.toString(), @oauthToken, payload..., cb
+		payload = if method in ['put', 'post'] then [body, mime] else []
+		return @oauth[method] endpointUrl, @oauthToken, payload..., cb
+
+	# state
+	oauthRedirectUri: null
+	oauthToken: null
 
 	loadState: (data, next = null) ->
 		{@oauthToken, @oauthRedirectUri} = data
@@ -451,9 +465,6 @@ class OAuth2Authentication
 			@oauthToken
 		}
 
-	oauthRedirectUri: null
-	oauthToken: null
-
 	startCallback: (oauthRedirectUri, [params]..., cb) ->
 		@oauthRedirectUri = oauthRedirectUri
 		params = Object.merge (params or {}), (@opts.params or {})
@@ -463,7 +474,7 @@ class OAuth2Authentication
 		params.redirect_uri = @oauthRedirectUri
 		cb @oauth.getAuthorizeUrl(params)
 
-	startVerifier: (cb) -> @startCallback @opts.emptyCallback or `undefined`, cb
+	start: (cb) -> @startCallback @opts.emptyCallback or `undefined`, cb
 
 	completeCallback: (originalUrl, cb) ->
 		@oauth.getOAuthAccessToken new Url(originalUrl).query.code, redirect_uri: @oauthRedirectUri, (err, @oauthToken, @oauthRefreshToken) =>
@@ -474,7 +485,7 @@ class OAuth2Authentication
 				@isAuthenticated = yes
 				cb 0
 
-	completeVerifier: ([verifier]..., cb) -> ### TODO(tcr) ###
+	complete: ([verifier]..., cb) -> ### TODO(tcr) ###
 
 	validate: (cb) ->
 		if not @opts.validate
@@ -483,13 +494,14 @@ class OAuth2Authentication
 			console.error err, data
 			cb err
 
-	middleware: (path, cb) ->
+	middleware: (url, cb) ->
+		path = new Url(url).pathname
 		return (req, res, next) =>
-			next() unless req.path == path
-			@completeCallback req.url, (results) -> cb req, res, next
+			unless req.path == path then next()
+			else @completeCallback req.url, (results) -> cb req, res, next
 
 authtypes.oauth = (api, opts) ->
-	switch String(opts.version ? '1.0')
+	switch String(opts.version ? '1.0').toLowerCase()
 		when '1.0', '1.0a' then new OAuth1Authentication(api, opts)
 		when '2.0' then new OAuth2Authentication(api, opts)
 		else throw new Error 'Invalid OAuth version ' + opts.version
@@ -509,14 +521,14 @@ class AWSSignatureAuthentication
 		endpoint.query.Timestamp = new Date().toJSON()
 		# Create a signature of query arguments.
 		# TODO(tcr) also post arguments...
-		hash = crypto.createHmac 'sha256', @opts.secret
+		hash = crypto.createHmac 'sha256', @api.opts.secret
 		hash.update [
 			# Method
 			"GET"
 			# Value of host header in lowercase
-			endpoint.host.toLowerCase()
+			endpoint.hostname.toLowerCase()
 			# HTTP Request URI
-			endpoint.path
+			endpoint.pathname
 			# Canonical query string (in byte order)
 			([k, v] for k, v of endpoint.query)
 				.sort(([a], [b]) -> a > b)
@@ -552,4 +564,5 @@ exports.load = (name, version = '1', opts) ->
 exports.url = (url, query = {}) ->
 	url = new Url url
 	Object.merge url.query, query
-	return new Route url, 'form', sendHttpRequest
+	return new Route url, 'form', (method, url, mime, body, cb = null) =>
+		sendHttpRequest method, url, mime, body, if cb then {data: cb} else {}

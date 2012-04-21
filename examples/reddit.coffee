@@ -1,6 +1,7 @@
 rem = require '../rem'
 fs = require 'fs'
-{ask} = require './utils'
+read = require 'read'
+
 keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 
 # Github
@@ -8,21 +9,18 @@ keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 
 reddit = rem.load 'reddit', '1'
 
-#reddit.get '/r/programming/comments/6nw57', {}, (err, action) ->
-#	console.log JSON.stringify action.json
-
-ask 'Username: ', /.*/, (user) ->
-	ask 'Password: ', /.*/, (passwd) ->
+# Reddit uses cookies for authentication. Hit the api/login
+# endpoint, and your remaining session will be authentication.
+read prompt: 'Username: ', (err, user) ->
+	read prompt: 'Password: ', silent: yes, (err, passwd) ->
 		reddit('api/login').post {user, passwd}, (err, json) ->
 			if err then console.log err; return
+			process.nextTick example
 
-			# Begin authenticated requests here.
-			reddit('api/me').get (err, json) ->
-				console.log err, JSON.stringify json
+# Authenticated REST demo.
+example = ->
 
-			# Try restoring state and duplication requests.
-			reddit.saveState (state) ->
-				reddit = rem.load 'reddit', '1'
-				reddit.loadState state
-				reddit('api/me').get (err, json) ->
-					console.log err, JSON.stringify json
+	# Get your account.
+	reddit('api/me').get (err, json) ->
+		if err then console.log err; return
+		console.log 'Your account:', JSON.stringify json, null, '  '

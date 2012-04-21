@@ -1,6 +1,8 @@
 rem = require '../rem'
 fs = require 'fs'
-{ask} = require './utils'
+read = require 'read'
+express = require 'express'
+
 keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 
 # Tumblr

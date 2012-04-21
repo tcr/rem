@@ -1,13 +1,14 @@
 { "name": "rem"
-, "description": "A library for getting started with REST APIs."
-, "version": "0.1.2"
+, "description": "REST made easy. Extensible, and includes support for many popular APIs."
+, "version": "0.2.0"
 , "author"        : "Tim Cameron Ryan <tim@timryan.org>"
 , "contributors"  : []
 , "dependencies"  : {
-    "express": "2.5.8",
+	"express": "2.5.8",
     "coffee-script": "1.2.0",
     "oauth": "0.9.6",
-    "tough-cookie": "0.9.8"
+    "tough-cookie": "0.9.8",
+    "read": "0.0.2"
   }
 , "main": "./rem.coffee"
 , "keywords": ["rem", "javascript", "rest", "api", "facebook", "dropbox", "twitter"]

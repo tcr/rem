@@ -27,7 +27,7 @@ Getting started with a particular API is as simple is specifying the name and AP
 
 ```javascript
 var rem = require('rem')
-var tw = rem.load('twitter', 1, {key: 'KEY', secret: 'SECRET'})
+var tw = rem.load('twitter', 1, {key: 'YOUR_API_KEY', secret: 'YOUR_INNERMOST_API_SECRET'})
 // Get started with version 1 of the Twitter API
 ```
 
@@ -37,21 +37,21 @@ You can make API requests simply:
 tw('search').get({q: 'fleetwood mac', rpp: 5}, function(err, json) {
     console.log('There are', json.results.length, 'results for Fleetwood Mac. #awesome');
 });
-// requires authentication:
-tw('statuses/update').post({status: message}, function (err, json) {
-    console.log(err, json)
-})
 ```
 
 OAuth authentication parameters are already included. You can authenticate by using callbacks,
 connect middleware, or out-of-band modes when available:
 
 ```javascript
+var read = require('read');
 tw.auth.start(function (url, results) {
-	console.log("Visit:", url)
-	require('read')({prompt: "Verification code: "}, function (err, verifier) {
-	    tw.oauth.complete(verifier, function (results) {
-	        // Authenticated calls with the Twitter API can be done here.
+	console.log("Visit:", url);
+	read({prompt: "Verification code: "}, function (err, verifier) {
+	    tw.auth.complete(verifier, function (results) {
+	        // Authenticated calls with the Twitter API can now be made:
+		tw('statuses/update').post({status: message}, function (err, json) {
+		    console.log('Posted a comment:', err, json);
+		})
 	    })
 	})
 })

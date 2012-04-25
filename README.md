@@ -9,6 +9,17 @@ To use REM with Node.js, install using `npm`:
 
     npm install rem
 
+## Examples
+
+[Examples are provided for each predefined API.](https://github.com/timcameronryan/rem-node/tree/master/examples). These examples can be run from the command line:
+
+    coffee examples/dropbox
+
+For authentication, create a file called `examples/keys.json` with your
+API keys and secrets, of the following format:
+
+    {"tumblr": {"key": "KEY", "secret": "SECRET"}, "twitter": ...}
+
 ## Usage
 
 REM includes [configurations for several popular APIs](https://github.com/timcameronryan/rem).
@@ -51,17 +62,6 @@ You can also define and load your own manifests for your own APIs:
 ```javascript
 var api = rem.create({base: 'http://cozy.api/v1', ...}, {format: 'json'})
 ```
-
-## Examples
-
-Any example in the examples folder can be run from the command line:
-
-    coffee examples/dropbox
-
-For authentication, create a file called `examples/keys.json` with your
-API keys and secrets, of the following format:
-
-    {"tumblr": {"key": "KEY", "secret": "SECRET"}, "twitter": ...}
 
 ## Reference
 

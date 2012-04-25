@@ -11,7 +11,7 @@ To use REM with Node.js, install using `npm`:
 
 ## Examples
 
-[Examples are provided for each predefined API.](https://github.com/timcameronryan/rem-node/tree/master/examples). These examples can be run from the command line:
+[Examples are provided for each predefined API.](https://github.com/timcameronryan/rem-node/tree/master/examples) These examples can be run from the command line:
 
     coffee examples/dropbox
 

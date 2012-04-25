@@ -45,15 +45,15 @@ connect middleware, or out-of-band modes when available:
 ```javascript
 var read = require('read');
 tw.auth.start(function (url, results) {
-	console.log("Visit:", url);
-	read({prompt: "Verification code: "}, function (err, verifier) {
-	    tw.auth.complete(verifier, function (results) {
-	        // Authenticated calls with the Twitter API can now be made:
-		tw('statuses/update').post({status: message}, function (err, json) {
-		    console.log('Posted a comment:', err, json);
-		})
-	    })
-	})
+    console.log("Visit:", url);
+    read({prompt: "Verification code: "}, function (err, verifier) {
+        tw.auth.complete(verifier, function (results) {
+            // Authenticated calls with the Twitter API can now be made:
+            tw('statuses/update').post({status: message}, function (err, json) {
+            	console.log('Posted a comment:', err, json);
+            })
+        })
+    })
 })
 ```
 

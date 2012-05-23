@@ -439,6 +439,13 @@ class OAuth1Authentication
 			req.session.oauthRequestToken = oauthRequestToken
 			req.session.oauthRequestSecret = oauthRequestSecret
 			cb url, results
+
+	clearSession: (req, cb) ->
+		delete req.session.oauthAccessToken
+		delete req.session.oauthAccessSecret
+		delete req.session.oauthRequestToken
+		delete req.session.oauthRequestSecret
+		cb()
 	
 	loadSession: (req, cb) ->
 		@loadState {
@@ -555,8 +562,13 @@ class OAuth2Authentication
 		next callable(new OAuth2API @api.manifest, opts)
 
 	startSession: (req, [params]..., cb) ->
-		# Superfluous, but maintain symmetry with OAuth1.
+		# noop
 		@start params, cb
+
+	clearSession: (req, cb) ->
+		delete req.session.oauthAccessToken
+		delete req.session.oauthRefreshToken
+		cb()
 	
 	loadSession: (req, cb) ->
 		@loadState {

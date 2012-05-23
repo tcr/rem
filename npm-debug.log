@@ -1,0 +1,170 @@
+info it worked if it ends with ok
+verbose cli [ 'node', '/usr/local/bin/npm', 'publish' ]
+info using npm@1.1.16
+info using node@v0.6.17
+verbose /usr/local/bin/node node symlink
+verbose config file /Users/Tim/.npmrc
+verbose config file /usr/local/etc/npmrc
+verbose config file /usr/local/lib/node_modules/npm/npmrc
+verbose publish [ '.' ]
+verbose caching /Users/Tim/Desktop/git/rem-node/package.json
+verbose loadDefaults rem@0.3.0
+info prepublish rem@0.3.0
+verbose cache add [ '.', null ]
+silly cache add: name, spec, args [ undefined, '.', [ '.', null ] ]
+verbose parsed url { pathname: '.', path: '.', href: '.' }
+verbose caching package.json
+verbose loadDefaults rem@0.3.0
+verbose tar.pack [ '/var/folders/85/_j2lxsrn1bzf28h8t5yz04_c0000gn/T/npm-1337804197305/1337804197305-0.9513953635469079/tmp.tgz',
+verbose tar.pack   '.' ]
+verbose tarball /var/folders/85/_j2lxsrn1bzf28h8t5yz04_c0000gn/T/npm-1337804197305/1337804197305-0.9513953635469079/tmp.tgz
+verbose folder .
+verbose unpack /var/folders/85/_j2lxsrn1bzf28h8t5yz04_c0000gn/T/npm-1337804197305/1337804197305-0.9513953635469079/tmp.tgz
+silly gunzTarPerm modes [ '755', '644' ]
+silly extracting entry package.json
+silly extracting entry .npmignore
+silly extracting entry README.md
+silly extracting entry .gitmodules
+silly extracting entry common/.npmignore
+silly extracting entry common/README
+silly extracting entry common/aws-s3.json
+silly extracting entry common/dropbox.json
+silly extracting entry common/duckduckgo.json
+silly extracting entry common/facebook.json
+silly extracting entry common/github.json
+silly extracting entry common/aws-products.json
+silly extracting entry common/google-docs.json
+silly extracting entry common/nonolith.json
+silly extracting entry common/youtube.json
+silly extracting entry common/reddit.json
+silly extracting entry common/tumblr.json
+silly extracting entry common/twitter.json
+silly extracting entry common/google-calendar.json
+silly extracting entry examples/.npmignore
+silly extracting entry examples/twitter.coffee
+silly extracting entry examples/dropbox.coffee
+silly extracting entry examples/duckduckgo.coffee
+silly extracting entry examples/facebook.coffee
+silly extracting entry examples/github.coffee
+silly extracting entry examples/cee.coffee
+silly extracting entry examples/server-oauth1.coffee
+silly extracting entry examples/server-oauth2.coffee
+silly extracting entry examples/todo/google-calendar.coffee
+silly extracting entry examples/todo/google-docs.coffee
+silly extracting entry examples/todo/youtube.coffee
+silly extracting entry examples/tumblr.coffee
+silly extracting entry examples/reddit.coffee
+silly extracting entry rem.coffee
+verbose caching /var/folders/85/_j2lxsrn1bzf28h8t5yz04_c0000gn/T/npm-1337804197305/1337804197305-0.9513953635469079/package/package.json
+verbose loadDefaults rem@0.3.0
+verbose from cache /var/folders/85/_j2lxsrn1bzf28h8t5yz04_c0000gn/T/npm-1337804197305/1337804197305-0.9513953635469079/package/package.json
+verbose tar.pack [ '/Users/Tim/.npm/rem/0.3.0/package.tgz',
+verbose tar.pack   '/var/folders/85/_j2lxsrn1bzf28h8t5yz04_c0000gn/T/npm-1337804197305/1337804197305-0.9513953635469079/package' ]
+verbose tarball /Users/Tim/.npm/rem/0.3.0/package.tgz
+verbose folder /var/folders/85/_j2lxsrn1bzf28h8t5yz04_c0000gn/T/npm-1337804197305/1337804197305-0.9513953635469079/package
+verbose unpack /Users/Tim/.npm/rem/0.3.0/package.tgz
+silly gunzTarPerm modes [ '755', '644' ]
+silly extracting entry package.json
+silly extracting entry .npmignore
+silly extracting entry README.md
+silly extracting entry .gitmodules
+silly extracting entry common/.npmignore
+silly extracting entry common/README
+silly extracting entry common/aws-s3.json
+silly extracting entry common/dropbox.json
+silly extracting entry common/duckduckgo.json
+silly extracting entry common/facebook.json
+silly extracting entry common/github.json
+silly extracting entry common/aws-products.json
+silly extracting entry common/google-docs.json
+silly extracting entry common/nonolith.json
+silly extracting entry common/youtube.json
+silly extracting entry common/reddit.json
+silly extracting entry common/tumblr.json
+silly extracting entry common/twitter.json
+silly extracting entry common/google-calendar.json
+silly extracting entry examples/.npmignore
+silly extracting entry examples/twitter.coffee
+silly extracting entry examples/dropbox.coffee
+silly extracting entry examples/duckduckgo.coffee
+silly extracting entry examples/facebook.coffee
+silly extracting entry examples/github.coffee
+silly extracting entry examples/cee.coffee
+silly extracting entry examples/server-oauth1.coffee
+silly extracting entry examples/server-oauth2.coffee
+silly extracting entry examples/todo/google-calendar.coffee
+silly extracting entry examples/todo/google-docs.coffee
+silly extracting entry examples/todo/youtube.coffee
+silly extracting entry examples/tumblr.coffee
+silly extracting entry examples/reddit.coffee
+silly extracting entry rem.coffee
+verbose caching /Users/Tim/.npm/rem/0.3.0/package/package.json
+verbose loadDefaults rem@0.3.0
+silly updated sha bytes 12789
+info shasum 5b6e17c9da213d98e2e02c5a36c26bf5e263757e
+info shasum /Users/Tim/.npm/rem/0.3.0/package.tgz
+verbose from cache /Users/Tim/.npm/rem/0.3.0/package/package.json
+verbose chmod /Users/Tim/.npm/rem/0.3.0/package.tgz 644
+verbose chown [ '/Users/Tim/.npm/rem/0.3.0/package.tgz', 501, 20 ]
+silly publish { name: 'rem',
+silly publish   description: 'REST made easy. Extensible, and includes support for many popular APIs.',
+silly publish   version: '0.3.0',
+silly publish   author: { name: 'Tim Cameron Ryan', email: 'tim@timryan.org' },
+silly publish   contributors: [],
+silly publish   dependencies: 
+silly publish    { express: '2.5.8',
+silly publish      'coffee-script': '1.2.0',
+silly publish      oauth: '0.9.6',
+silly publish      'tough-cookie': '0.9.8',
+silly publish      read: '0.0.2',
+silly publish      q: '0.8.5' },
+silly publish   main: './rem.coffee',
+silly publish   keywords: 
+silly publish    [ 'rem',
+silly publish      'javascript',
+silly publish      'rest',
+silly publish      'api',
+silly publish      'facebook',
+silly publish      'dropbox',
+silly publish      'twitter' ],
+silly publish   repository: 
+silly publish    { type: 'git',
+silly publish      url: 'git://github.com/timcameronryan/rem-node.git' },
+silly publish   _npmUser: { name: 'timcameronryan', email: 'tim@timryan.org' },
+silly publish   _id: 'rem@0.3.0',
+silly publish   devDependencies: {},
+silly publish   optionalDependencies: {},
+silly publish   engines: { node: '*' },
+silly publish   _engineSupported: true,
+silly publish   _npmVersion: '1.1.16',
+silly publish   _nodeVersion: 'v0.6.17',
+silly publish   _defaultsLoaded: true,
+silly publish   dist: 
+silly publish    { shasum: '5b6e17c9da213d98e2e02c5a36c26bf5e263757e',
+silly publish      tarball: 'http://registry.npmjs.org/rem/-/rem-0.3.0.tgz' } }
+verbose raw, before any munging rem
+verbose url resolving [ 'https://registry.npmjs.org/', './rem' ]
+verbose url resolved https://registry.npmjs.org/rem
+http PUT https://registry.npmjs.org/rem
+http 409 https://registry.npmjs.org/rem
+verbose raw, before any munging rem
+verbose url resolving [ 'https://registry.npmjs.org/', './rem' ]
+verbose url resolved https://registry.npmjs.org/rem
+http GET https://registry.npmjs.org/rem
+http 200 https://registry.npmjs.org/rem
+info Already published rem@0.3.0
+verbose uploading bin dists []
+ERR! publish fail Cannot publish over existing version.
+ERR! publish fail Bump the 'version' field, set the --force flag, or
+ERR! publish fail     npm unpublish 'rem@0.3.0'
+ERR! publish fail and try again
+ERR! 
+ERR! System Darwin 11.3.0
+ERR! command "node" "/usr/local/bin/npm" "publish"
+ERR! cwd /Users/Tim/Desktop/git/rem-node
+ERR! node -v v0.6.17
+ERR! npm -v 1.1.16
+ERR! code EPUBLISHCONFLICT
+ERR! message publish fail
+ERR! errno {}
+verbose exit [ 1, true ]

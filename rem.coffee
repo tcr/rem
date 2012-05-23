@@ -2,9 +2,10 @@
 
 REM: Remedial Rest Interfaces
 
-http://roy.gbiv.com/untangled/2008/rest-apis-must-be-hypertext-driven
-
 A library that simplifies and normalizes access to REST APIs.
+
+See more:
+http://roy.gbiv.com/untangled/2008/rest-apis-must-be-hypertext-driven
 
 ###
 
@@ -13,14 +14,22 @@ https = require 'https'
 http = require 'http'
 util = require 'util'
 fs = require 'fs'
+Q = require 'q'
 # Conditional requires.
 libxmljs = null
 
 # Config
 USER_AGENT = 'Mozilla/5.0 (compatible; REMbot/1.0; +http://rem.tcr.io/)'
 
-# Lib functions
-# -------------
+# Utilities
+# ---------
+
+callable = (obj) ->
+	f = (args...) -> f.call args...
+	f.__proto__ = obj
+	return f
+
+JSON.clone = (obj) -> JSON.parse JSON.stringify obj
 
 Object.merge = (base, args...) ->
 	for arg in args
@@ -155,14 +164,6 @@ class Route
 
 # A REM API.
 
-# format
-# uploadFormat
-# basepath
-# suffix
-# params
-# configParams
-# auth: {type, opts...}
-
 class API
 	constructor: (@manifest, @opts = {}) ->
 		# Load key, secret
@@ -188,7 +189,7 @@ class API
 				for qk, qv of @manifest.params then endpoint.query[qk] = qv
 
 		# Add auth methods.
-		@auth = new authtypes[@manifest.auth?.type ? 'unauthenticated'] this, @manifest.auth
+		#@auth = new authtypes[@manifest.auth?.type ? 'unauthenticated'] this, @manifest.auth
 
 	call: (pathname, query) ->
 		url = new Url('')
@@ -229,7 +230,7 @@ class API
 					filter endpoint
 
 				# Process HTTP request through authentication scheme.
-				@auth.processRequest method, endpoint.toString(), mime, body, (err, data, res) ->
+				@processRequest method, endpoint.toString(), mime, body, (err, data, res) ->
 					# User callbacks.
 					return unless cb
 					if err
@@ -237,6 +238,9 @@ class API
 					else
 						media = new HyperMedia res, data
 						cb media.errorCode, media.data, media
+
+	processRequest: (method, endpointUrl, mime, body, cb) ->
+		sendHttpRequest method, endpointUrl, mime, body, data: cb
 
 	# Root request shorthand.
 
@@ -258,93 +262,108 @@ class API
 # Authentication Mechanisms
 # =========================
 
-authtypes = {}
-
-class authtypes.unauthenticated
-	constructor: (@api, opts) ->
-
-	processRequest: (method, endpointUrl, mime, body, cb) ->
-		sendHttpRequest method, endpointUrl, mime, body, data: cb
-
 # Cookie Session Auth
 # -------------------
 
 {Cookie, CookieJar} = require 'tough-cookie'
 
-# array of cookies to track
-
-class CookieAuthentication
-	constructor: (@api, @opts) ->
-		@isAuthenticated = no
-		# Create cookie jar.
-		@jar = new CookieJar()
-		# Get list of hosts from manifest.
-		@hosts = []
-		for v in [if typeof @api.manifest.base == 'string' then [/^.*$/, @api.manifest.base] else @api.manifest.base]
-			url = new Url(if typeof v == 'object' then v[1] else v)
-			@hosts.push url.protocol + '//' + url.hostname
+class CookieSessionAPI extends API
+	constructor: (manifest, opts) ->
+		# Configuration.
+		super
 
 	processRequest: (method, endpointUrl, mime, body, cb) ->
 		# HTTP Request.
 		sendHttpRequest method, endpointUrl, mime, body,
+			data: cb
 			headers: (req, next) =>
-				@jar.getCookieString endpointUrl, (err, cookies) =>
-					req.setHeader 'Cookie', cookies
-					next()
+				req.setHeader 'Cookie', @opts.cookies
+				next()
 
+	saveState: (next) ->
+		next {cookies: @opts.cookies}
+
+class CookieSessionAuthentication
+	constructor: (@api) ->
+
+	authenticate: (username, password, cb) ->		
+		# HTTP Request.
+		jar = new CookieJar()
+		endpointUrl = 'http://www.reddit.com/api/login'
+		sendHttpRequest 'POST', endpointUrl,
+			'application/x-www-form-urlencoded', querystring.stringify({user: username, passwd: password}),
 			data: (err, data, res) =>
 				# Read cookies.
 				if res.headers['set-cookie'] instanceof Array
 					cookies = res.headers['set-cookie'].map Cookie.parse
 				else if res.headers['set-cookie']?
 					cookies = [Cookie.parse(res.headers['set-cookie'])]
-				for cookie in (cookies or []) when cookie.key in @opts.cookies
-					@jar.setCookie cookie, endpointUrl, (err, r) ->
-						@isAuthenticated = yes
-						console.error err if err
 
-				# Continue.
-				cb err, data, res
+				# Set cookies.
+				Q.all(
+					for cookie in (cookies or []) when cookie.key in @api.manifest.auth.cookies
+						deferred = Q.defer()
+						jar.setCookie cookie, endpointUrl, (err, r) ->
+							if err then deferred.reject err
+							else deferred.resolve()
+						deferred.promise
+				).then =>
+					jar.getCookieString endpointUrl, (err, cookies) =>
+						process.nextTick => @loadState {cookies}, cb
 
-	loadState: (data, next) ->
-		for host of (data.cookies or {})
-			for cookie in data.cookies[host]
-				@jar.setCookie cookie, host, (err) ->
-					console.error err if err
-		next?()
+	loadState: (data, cb) ->
+		opts = JSON.clone @api.opts
+		opts.cookies = data.cookies
+		cb 0, callable new CookieSessionAPI @api.manifest, opts
 
-	saveState: (next) ->
-		i = @hosts.length
-		cookies = {}
-		for host in @hosts
-			do (host) =>
-				@jar.getCookies host, (err, hostCookies) =>
-					cookies[host] = hostCookies.map String
-					if --i == 0
-						next {cookies}
-
-authtypes.cookies = CookieAuthentication
+exports.session = (api) -> new CookieSessionAuthentication(api)
 
 # OAuth
 # -----
 
+# version = '1.0', '1.0a', '2.0'
+# scopeSeparator
+# validate
+# oob
+# oobCallback
+# oobVerifier
+
 nodeoauth = require("oauth")
 
-# version = '1.0', '1.0a'
+exports.oauth = (api, callback) ->
+	switch String(api.manifest.auth.version).toLowerCase()
+		when '1.0', '1.0a' then exports.oauth1(api, callback)
+		when '2.0' then exports.oauth2(api, callback)
+		else throw new Error 'Invalid OAuth version ' + api.manifest.auth.version
+
+# OAuth 1
+# -------
+
 # requestEndpoint
 # accessEndpoint
-# opts
-# scopeSeparator
-# emptyCallback
-# oobVerifier
-# validate
+# authorizeEndpoint
 
-class OAuth1Authentication
-	constructor: (@api, @opts) ->
-		@isAuthenticated = no
-		@oauth = new nodeoauth.OAuth @opts.requestEndpoint, @opts.accessEndpoint,
-			@api.key, @api.secret, opts.version or '1.0', @oauthRedirectUri, "HMAC-SHA1", null,
-			{'User-Agent': USER_AGENT, "Accept": "*/*", "Connection": "close", "User-Agent": "Node authentication"}
+class OAuth1API extends API
+	constructor: (manifest, opts) ->
+		# Configuration.
+		super
+		@config = @manifest.auth
+
+		@oauth = new nodeoauth.OAuth @config.requestEndpoint, @config.accessEndpoint,
+			@opts.key, @opts.secret, @config.version or '1.0', @opts.oauthRedirect, "HMAC-SHA1", null,
+			{'User-Agent': USER_AGENT, "Accept": "*/*", "Connection": "close"}
+
+	saveState: (next) ->
+		next {
+			oauthAccessToken: @opts.oauthAccessToken
+			oauthAccessSecret: @opts.oauthAccessSecret
+		}
+
+	saveSession: (req, cb) ->
+		req.session.oauthAccessToken = @opts.oauthAccessToken
+		req.session.oauthAccessSecret = @opts.oauthAccessSecret
+		req.user = this
+		cb(req)
 
 	processRequest: (method, endpointUrl, mime, body, cb) ->
 		# OAuth request.
@@ -353,75 +372,100 @@ class OAuth1Authentication
 			if mime == 'application/x-www-form-urlencoded' then [querystring.parse body]
 			else [body, mime]
 		else []
-		return @oauth[method] endpointUrl, @oauthToken, @oauthTokenSecret, payload..., cb
+		return @oauth[method] endpointUrl, @opts.oauthAccessToken, @opts.oauthAccessSecret, payload..., cb
 
-	# State.
-	oauthRedirectUri: null
-	oauthToken: null
-	oauthTokenSecret: null
+	validate: (cb) ->
+		if not @config.validate
+			throw new Error 'Manifest does not define mechanism for validating OAuth.'
 
-	loadState: (data, next = null) ->
-		{@oauthToken, @oauthTokenSecret, @oauthRedirectUri} = data
-		next?()
+		this(@config.validate).get (err, data) ->
+			cb err
 
-	saveState: (next) ->
-		next {
-			@oauthRedirectUri
-			@oauthToken
-			@oauthTokenSecret
-		}
+class OAuth1Authentication
+	constructor: (@api, redirect = null) ->
+		# Configuration.
+		@config = @api.manifest.auth
+		# Get redirect URL.
+		@oob = not redirect
+		unless redirect or @config.oob
+			throw new Error 'Out-of-band OAuth for this API is not permitted.'
+		@oauthRedirect = redirect or @config.oobCallback or `undefined`
 
-	startCallback: (oauthRedirectUri, [params]..., cb) ->
-		@oauthRedirectUri = oauthRedirectUri
-		params = Object.merge (params or {}), (@opts.params or {})
+		@oauth = new nodeoauth.OAuth @config.requestEndpoint, @config.accessEndpoint,
+			@api.key, @api.secret, @config.version or '1.0', @oauthRedirect, "HMAC-SHA1", null,
+			{'User-Agent': USER_AGENT, "Accept": "*/*", "Connection": "close"}
+
+	start: ([params]..., cb) ->
+		# Filter parameters.
+		params = Object.merge (params or {}), (@config.params or {})
 		if params.scope? and typeof params.scope == 'object'
-			params.scope = params.scope.join(@opts.scopeSeparator or ' ')
+			params.scope = params.scope.join(@config.scopeSeparator or ' ')
 		# Needed for Twitter, etc.
-		if oauthRedirectUri? then params['oauth_callback'] = oauthRedirectUri
+		if @oauthRedirect then params['oauth_callback'] = @oauthRedirect
 
-		@oauth.getOAuthRequestToken params, (err, @oauthToken, @oauthTokenSecret, results) =>
+		@oauth.getOAuthRequestToken params, (err, oauthRequestToken, oauthRequestSecret, results) =>
 			if err
 				console.error "Error requesting OAuth token: " + JSON.stringify(err)
 			else
-				authurl = new Url(@opts.authorizeEndpoint)
-				authurl.query.oauth_token = oauthToken
-				if oauthRedirectUri? then authurl.query.oauth_callback = oauthRedirectUri
-				cb authurl.toString(), results
+				authurl = new Url(@config.authorizeEndpoint)
+				authurl.query.oauth_token = oauthRequestToken
+				if @oauthRedirect then authurl.query.oauth_callback = @oauthRedirect
+				cb authurl.toString(), oauthRequestToken, oauthRequestSecret, results
 
-	start: (cb) ->
-		if not @opts.oob
-			console.error 'Out-of-band OAuth for this API is not permitted.'
-			return
-		@startCallback @opts.oobCallback or `undefined`, cb
+	complete: ([verifier]..., oauthRequestToken, oauthRequestSecret, cb) ->
+		if not verifier and (not @oob or @config.oobVerifier)
+			throw new Error 'Out-of-band OAuth for this API requires a verification code.'
+		if not @oob
+			verifier = new Url(verifier).query.oauth_verifier
 
-	completeCallback: (originalUrl, cb) ->
-		@complete new Url(originalUrl).query.oauth_verifier, cb
+		@oauth.getOAuthAccessToken oauthRequestToken, oauthRequestSecret, verifier,
+			(err, oauthAccessToken, oauthAccessSecret, results) =>
+				if err
+					console.error "Error authorizing OAuth endpoint: " + JSON.stringify(err)
+					cb err, null, results
+				else
+					@loadState {oauthAccessToken, oauthAccessSecret, @oauthRedirect}, (user) ->
+						cb err, user, results
 
-	complete: ([verifier]..., cb) ->
-		if not verifier? and @opts.oobVerifier
-			console.error 'Out-of-band OAuth for this API requires a verification code.'
-			return
+	loadState: (data, next) ->
+		opts = JSON.clone @api.opts
+		opts.oauthAccessToken = data.oauthAccessToken
+		opts.oauthAccessSecret = data.oauthAccessSecret
+		opts.oauthRedirect = @oauthRedirect
+		next callable(new OAuth1API @api.manifest, opts)
 
-		@oauth.getOAuthAccessToken @oauthToken, @oauthTokenSecret, verifier, (err, @oauthToken, @oauthTokenSecret, results) =>
-			if err
-				console.error "Error authorizing OAuth endpoint: " + JSON.stringify(err)
-				cb err
-			else
-				@isAuthenticated = yes
-				cb err, results
+	startSession: (req, [params]..., cb) ->
+		@start params, (url, oauthRequestToken, oauthRequestSecret, results) ->
+			req.session.oauthRequestToken = oauthRequestToken
+			req.session.oauthRequestSecret = oauthRequestSecret
+			cb url, results
+	
+	loadSession: (req, cb) ->
+		@loadState {
+			oauthAccessToken: req.session.oauthAccessToken
+			oauthAccessSecret: req.session.oauthAccessSecret
+		}, (user) ->
+			req.user = user
+			cb()
 
-	validate: (cb) ->
-		if not @opts.validate
-			throw new Error 'Manifest does not define mechanism for validating OAuth.'
-		@api(@opts.validate).get (err, data) ->
-			console.error err, data
-			cb err
-
-	middleware: (url, cb) ->
-		path = new Url(url).pathname
+	middleware: (cb) ->
+		path = new Url(@oauthRedirect).pathname
 		return (req, res, next) =>
-			unless req.path == path then next()
-			else @completeCallback req.url, (results) -> cb req, res, next
+			if req.path == path
+				@complete req.url, req.session.oauthRequestToken, req.session.oauthRequestSecret,
+					(err, user, results) =>
+						user.saveSession req, ->
+							cb(req, res, next)
+			else
+				if req.session.oauthAccessToken? and req.session.oauthAccessSecret?
+					@loadSession(req, next)
+				else
+					next()
+
+exports.oauth1 = (api, callback) -> new OAuth1Authentication(api, callback)
+
+# OAuth 2
+# -------
 
 #oldreq = OAuth2::_request
 #OAuth2::_request = (method, url, headers, body, accessToken, cb) ->
@@ -436,83 +480,116 @@ nodeoauth.OAuth2::put = (url, accessToken, body, mime, cb) ->
 nodeoauth.OAuth2::delete = (url, accessToken, body, mime, cb) ->
 	@_request "DELETE", url, {}, "", accessToken, cb
 
-# version
 # base
-# scopeSeparator
-# emptyCallback
-# validate
 
-class OAuth2Authentication
-	constructor: (@api, @opts) ->
-		@isAuthenticated = no
-		@oauth = new nodeoauth.OAuth2 @api.key, @api.secret, @opts.base
+class OAuth2API extends API
+	constructor: (manifest, opts) ->
+		# Configuration.
+		super
+		@config = @manifest.auth
+		@oauth = new nodeoauth.OAuth2 @opts.key, @opts.secret, @config.base
 
 	processRequest: (method, endpointUrl, mime, body, cb) ->
 		payload = if method in ['put', 'post'] then [body, mime] else []
-		return @oauth[method] endpointUrl, @oauthToken, payload..., cb
-
-	# state
-	oauthRedirectUri: null
-	oauthToken: null
-
-	loadState: (data, next = null) ->
-		{@oauthToken, @oauthRedirectUri} = data
-		next?()
-
-	saveState: (next) ->
-		next {
-			@oauthRedirectUri
-			@oauthToken
-		}
-
-	startCallback: (oauthRedirectUri, [params]..., cb) ->
-		@oauthRedirectUri = oauthRedirectUri
-		params = Object.merge (params or {}), (@opts.params or {})
-		if params.scope? and typeof params.scope == 'object'
-			params.scope = params.scope.join(@opts.scopeSeparator or ' ')
-
-		params.redirect_uri = @oauthRedirectUri
-		cb @oauth.getAuthorizeUrl(params)
-
-	start: (cb) -> @startCallback @opts.emptyCallback or `undefined`, cb
-
-	completeCallback: (originalUrl, cb) ->
-		@oauth.getOAuthAccessToken new Url(originalUrl).query.code, redirect_uri: @oauthRedirectUri, (err, @oauthToken, @oauthRefreshToken) =>
-			if err
-				console.error 'Error authorizing OAuth2 endpoint:', JSON.stringify err
-				cb err
-			else
-				@isAuthenticated = yes
-				cb 0
-
-	complete: ([verifier]..., cb) -> ### TODO(tcr) ###
+		return @oauth[method] endpointUrl, @opts.oauthAccessToken, payload..., cb
 
 	validate: (cb) ->
 		if not @opts.validate
 			throw new Error 'Manifest does not define mechanism for validating OAuth.'
-		@api(@opts.validate).get (err, data) ->
-			console.error err, data
+
+		this(@opts.validate).get (err, data) ->
 			cb err
 
-	middleware: (url, cb) ->
-		path = new Url(url).pathname
+	saveState: (next) ->
+		next {
+			oauthRedirect: @opts.oauthRedirect
+			oauthAccessToken: @opts.oauthAccessToken
+			oauthRefreshToken: @opts.oauthRefreshToken
+		}
+
+	saveSession: (req, cb) ->
+		req.session.oauthAccessToken = @opts.oauthAccessToken
+		req.session.oauthRefreshToken = @opts.oauthRefreshToken
+		req.user = this
+		cb(req)
+
+class OAuth2Authentication
+	constructor: (@api, redirect) ->
+		@config = @api.manifest.auth
+		# Get redirect URL.
+		#@oob = not redirect
+		#unless redirect or @config.oob
+		#	throw new Error 'Out-of-band OAuth for this API is not permitted.'
+		#@oauthRedirect = redirect or @config.oobCallback or `undefined`
+		#TODO oob
+		@oob = no
+		@oauthRedirect = redirect
+
+		@oauth = new nodeoauth.OAuth2 @api.key, @api.secret, @config.base
+
+	start: ([params]..., cb) ->
+		params = Object.merge (@config.params or {}), (params or {})
+		if params.scope? and typeof params.scope == 'object'
+			params.scope = params.scope.join(@config.scopeSeparator or ' ')
+
+		params.redirect_uri = @oauthRedirect
+		cb @oauth.getAuthorizeUrl(params)
+
+	complete: (verifier, cb) ->
+		if not @oob
+			verifier = new Url(verifier).query.code
+
+		@oauth.getOAuthAccessToken verifier, redirect_uri: @oauthRedirect, (err, oauthAccessToken, oauthRefreshToken) =>
+			if err
+				console.error 'Error authorizing OAuth2 endpoint:', JSON.stringify err
+				cb err, null
+			else
+				@loadState {oauthAccessToken, oauthRefreshToken}, (user) ->
+					cb 0, user
+
+	loadState: (data, next) ->
+		opts = JSON.clone @api.opts
+		opts.oauthAccessToken = data.oauthAccessToken
+		opts.oauthRefreshToken = data.oauthRefreshToken
+		opts.oauthRedirect = @oauthRedirect
+		next callable(new OAuth2API @api.manifest, opts)
+
+	startSession: (req, [params]..., cb) ->
+		# Superfluous, but maintain symmetry with OAuth1.
+		@start params, cb
+	
+	loadSession: (req, cb) ->
+		@loadState {
+			oauthAccessToken: req.session.oauthAccessToken
+			oauthRefreshToken: req.session.oauthRefreshToken
+		}, (user) ->
+			req.user = user
+			cb()
+
+	middleware: (cb) ->
+		path = new Url(@oauthRedirect).pathname
 		return (req, res, next) =>
-			unless req.path == path then next()
-			else @completeCallback req.url, (results) -> cb req, res, next
+			if req.path == path
+				@complete req.url, (err, user, results) =>
+					user.saveSession req, ->
+						cb(req, res, next)
+			else
+				if req.session.oauthAccessToken?
+					@loadSession(req, next)
+				else
+					next()
 
-authtypes.oauth = (api, opts) ->
-	switch String(opts.version ? '1.0').toLowerCase()
-		when '1.0', '1.0a' then new OAuth1Authentication(api, opts)
-		when '2.0' then new OAuth2Authentication(api, opts)
-		else throw new Error 'Invalid OAuth version ' + opts.version
+exports.oauth2 = (api, callback) -> new OAuth2Authentication(api, callback)
 
-# AWS Custom Authentication.
+# AWS Signature
+# -------------
 
-class AWSSignatureAuthentication
+class AWSSignatureAPI extends API
 	querystring = require('querystring')
 	crypto = require('crypto')
 
-	constructor: (@api, @opts) ->
+	constructor: (manifest, opts) ->
+		super
 
 	processRequest: (method, endpointUrl, mime, body, cb) ->
 		endpoint = new Url endpointUrl
@@ -540,17 +617,14 @@ class AWSSignatureAuthentication
 		# HTTP Request.
 		sendHttpRequest method, endpoint.toString(), mime, body, data: cb
 
-authtypes.awsSignature = AWSSignatureAuthentication
+exports.aws = (api) -> callable new AWSSignatureAPI api.manifest, api.opts
 
 # Public API
 # ----------
 
 exports.API = API
 
-exports.create = (manifest, opts) ->
-	f = (args...) -> f.call args...
-	f.__proto__ = new API manifest, opts
-	return f
+exports.create = (manifest, opts) -> callable(new API manifest, opts)
 
 # TODO also load locally
 exports.load = (name, version = '1', opts) ->

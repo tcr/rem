@@ -5,35 +5,34 @@ express = require 'express'
 
 keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 
-CALLBACK_URL = "http://localhost:3000/oauth/callback/"
-
-# Launch server.
-app = express.createServer()
-app.get '/', (req, res) ->
-	res.send 'OAuth server!'
-app.listen 3000
-
 # Github
 # ======
 
+# Create the API.
 github = rem.load 'github', '1',
 	key: keys.github.key
 	secret: keys.github.secret
+# Permissions.
+scope = ["user", "repo"]
 
-# Get initial url.
-github.auth.startCallback CALLBACK_URL, scope: ["user", "repo"], (url) ->
-	console.log 'Visit:', url
-# Use middleware to intercept OAuth callbacks.
-# For this demo, when authenticated, we'll close the server and run an example.
-app.use github.auth.middleware CALLBACK_URL, (req, res, next) ->
-	res.send "Authenticated with Github. (Closing server.)"
-	req.socket.destroy(); app.close()
-	process.nextTick example
+# Use a server to perform OAuth when out-of-band is unavailable.
+# See server-oauth2.coffee for more detail on server authentication.
+oauth = rem.oauth(github, "http://localhost:3000/oauth/callback/")
+app = express.createServer(express.cookieParser(), express.session(secret: "!"))
+app.use oauth.middleware (req, res, next) ->
+	res.send "Authenticated user. Check your console, hero."
+	process.nextTick -> example req.user
+app.get '/login/', (req, res) ->
+	oauth.startSession req, scope: scope, (url) ->
+		res.redirect url
+app.listen 3000
+console.log 'Visit:', "http://localhost:3000/login/"
 
 # Authenticated REST demo.
-example = ->
+example = (user) ->
+
 	console.log 'Your gists:'
-	github('user').get (err, profile) ->
-		github("users/#{profile.login}/gists").get (err, json) ->
+	user('user').get (err, profile) ->
+		user("users/#{profile.login}/gists").get (err, json) ->
 			for gist in json
-				console.log gist.description
+				console.log ' -', gist.description

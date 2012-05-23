@@ -11,4 +11,4 @@ keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 ddg = rem.load 'duckduckgo', '1'
 
 ddg.get q: 'java', (err, json, obj) ->
-	console.log 'Search for "java":', json.Heading
+	console.log 'Search for "java" heading:', json.Heading

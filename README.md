@@ -44,12 +44,13 @@ connect middleware, or out-of-band modes when available:
 
 ```javascript
 var read = require('read');
-tw.auth.start(function (url, results) {
+var oauth = rem.oauth(tw);
+tw.start(function (url, token, secret) {
     console.log("Visit:", url);
     read({prompt: "Verification code: "}, function (err, verifier) {
-        tw.auth.complete(verifier, function (results) {
+        oauth.complete(verifier, token, secret, function (err, user) {
             // Authenticated calls with the Twitter API can now be made:
-            tw('statuses/update').post({status: message}, function (err, json) {
+            user('statuses/update').post({status: message}, function (err, json) {
             	console.log('Posted a comment:', err, json);
             })
         })
@@ -80,9 +81,6 @@ The `Api` object is callable:
    * #### api(_path_[, _params_]) returns `Route`  
      Returns a route object for the given path, and if specified, query parameters. These parameters can be augmented by method calls, for instance `api('/some/path', {"key1": "A"}).get({"key2": "B"}, function () { ... })` uses both `key1` and `key2`.
 
-   * #### api.auth is an `Auth` object  
-     Use this object to perform authentication via REST. Depending on the manifest's `auth.type` value, this object will have different methods.
-
 ### `Route` object
 
 All route methods perform a REST call. Each takes a _callback_ parameter (which can be omitted, for instance to just return the ClientRequest object). The callback receives an `err` argument, a `data` object (which will be a JSON object or a `libxmljs` document), and a `RESTCall` object with additional methods and properties.
@@ -104,7 +102,7 @@ All route methods perform a REST call. Each takes a _callback_ parameter (which 
 
 ### `Auth` object
 
-TODO. See examples.
+TODO. See `examples/server-oauth1.coffee` and `examples/server-oauth2.coffee`.
 
 ## License
 

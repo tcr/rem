@@ -9,18 +9,19 @@ keys = JSON.parse fs.readFileSync __dirname + '/keys.json'
 
 reddit = rem.load 'reddit', '1'
 
+# Session handler.
+session = rem.session(reddit)
 # Reddit uses cookies for authentication. Hit the api/login
 # endpoint, and your remaining session will be authentication.
 read prompt: 'Username: ', (err, user) ->
-	read prompt: 'Password: ', silent: yes, (err, passwd) ->
-		reddit('api/login').post {user, passwd}, (err, json) ->
-			if err then console.log err; return
-			process.nextTick example
+	read prompt: 'Password: ', silent: yes, (err, password) ->
+		session.authenticate user, password, example
 
 # Authenticated REST demo.
-example = ->
+example = (err, user) ->
+	if err then console.log err; return
 
 	# Get your account.
-	reddit('api/me').get (err, json) ->
+	user('api/me').get (err, json) ->
 		if err then console.log err; return
 		console.log 'Your account:', JSON.stringify json, null, '  '

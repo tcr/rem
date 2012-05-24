@@ -12,8 +12,16 @@ tw = rem.load 'twitter', '1',
 	key: keys.twitter.key
 	secret: keys.twitter.secret
 
-# See oob.coffee for details on OAuth authentication.
-rem.oauthConsole tw, (err, user) ->
+# Oauth provider. Omitting the callback url triggers out-of-band mode.
+oauth = rem.oauth(tw)
+oauth.start (url, token, secret) ->
+	console.log "Visit:", url
+	read prompt: "Type in the verification code: ", (err, verifier) ->
+		oauth.complete verifier, token, secret, example
+
+# Authenticated REST demo.
+example = (err, user) ->
+	if err then console.error err; return
 
 	# Get your newest tweets.
 	console.log 'Latest tweets from your timeline:'

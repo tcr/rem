@@ -15,11 +15,16 @@ http = require 'http'
 util = require 'util'
 fs = require 'fs'
 Q = require 'q'
+read = require 'read'
+express = require 'express'
 # Conditional requires.
 libxmljs = null
 
 # Config
 USER_AGENT = 'Mozilla/5.0 (compatible; REMbot/1.0; +http://rem.tcr.io/)'
+
+# Alias
+rem = exports
 
 # Utilities
 # ---------
@@ -33,7 +38,11 @@ JSON.clone = (obj) -> JSON.parse JSON.stringify obj
 
 Object.merge = (base, args...) ->
 	for arg in args
-		for k, v of arg then base[k] = v
+		for k, v of arg
+			if base[k] and v and typeof base[k] == 'object' and typeof v == 'object' and base[k].constructor != Array and v.constructor != Array
+				base[k] = Object.merge base[k], v
+			else
+				base[k] = v
 	return base
 
 class Url 
@@ -524,15 +533,12 @@ class OAuth2Authentication
 	constructor: (@api, redirect) ->
 		@config = @api.manifest.auth
 		# Get redirect URL.
-		#@oob = not redirect
-		#unless redirect or @config.oob
-		#	throw new Error 'Out-of-band OAuth for this API is not permitted.'
-		#@oauthRedirect = redirect or @config.oobCallback or `undefined`
-		#TODO oob
-		@oob = no
-		@oauthRedirect = redirect
+		@oob = not redirect
+		unless redirect or @config.oob
+			throw new Error 'Out-of-band OAuth for this API is not permitted.'
+		@oauthRedirect = redirect or @config.oobCallback or `undefined`
 
-		@oauth = new nodeoauth.OAuth2 @api.key, @api.secret, @config.base
+		@oauth = new nodeoauth.OAuth2 @api.key, @api.secret, @config.base, @config.authorizePath, @config.tokenPath
 
 	start: ([params]..., cb) ->
 		params = Object.merge (@config.params or {}), (params or {})
@@ -542,17 +548,18 @@ class OAuth2Authentication
 		params.redirect_uri = @oauthRedirect
 		cb @oauth.getAuthorizeUrl(params)
 
-	complete: (verifier, cb) ->
+	complete: (verifier, [token, secret]..., cb) ->
 		if not @oob
 			verifier = new Url(verifier).query.code
 
-		@oauth.getOAuthAccessToken verifier, redirect_uri: @oauthRedirect, (err, oauthAccessToken, oauthRefreshToken) =>
-			if err
-				console.error 'Error authorizing OAuth2 endpoint:', JSON.stringify err
-				cb err, null
-			else
-				@loadState {oauthAccessToken, oauthRefreshToken}, (user) ->
-					cb 0, user
+		@oauth.getOAuthAccessToken verifier, redirect_uri: @oauthRedirect, grant_type: 'authorization_code',
+			(err, oauthAccessToken, oauthRefreshToken) =>
+				if err
+					console.error 'Error authorizing OAuth2 endpoint:', JSON.stringify err
+					cb err, null
+				else
+					@loadState {oauthAccessToken, oauthRefreshToken}, (user) ->
+						cb 0, user
 
 	loadState: (data, next) ->
 		opts = JSON.clone @api.opts
@@ -592,6 +599,41 @@ class OAuth2Authentication
 					next()
 
 exports.oauth2 = (api, callback) -> new OAuth2Authentication(api, callback)
+
+# OAuth console
+# -------------
+
+exports.oauthConsoleOob = (api, [params]..., cb) ->
+	# Out-of-band authentication.
+	oauth = rem.oauth(api)
+	oauth.start (url, token, secret) ->
+		console.log "Visit:", url
+		if api.manifest.auth.oobVerifier
+			read prompt: "Type in the verification code: ", (err, verifier) ->
+				oauth.complete verifier, token, secret, cb
+		else
+			read prompt: "Hit any key to continue...", (err) ->
+				oauth.complete token, secret, cb 
+
+exports.oauthConsole = (api, [params]..., cb) ->
+	# Create OAuth server authentication.
+	port = params?.port ? 3000
+	oauth = rem.oauth(api, "http://localhost:#{port}/oauth/callback/")
+	app = express.createServer()
+	app.use express.cookieParser()
+	app.use express.session(secret: "!")
+	
+	# OAuth callback.
+	app.use oauth.middleware (req, res, next) ->
+		res.send "Authenticated user. Check your console, hero."
+		process.nextTick -> cb 0, req.user
+	# Login page.
+	app.get '/login/', (req, res) ->
+		oauth.startSession req, params or {}, (url) ->
+			res.redirect url
+	# Listen on server.
+	app.listen port
+	console.log 'Visit:', "http://localhost:#{port}/login/"
 
 # AWS Signature
 # -------------

@@ -613,6 +613,7 @@ exports.oauthConsoleOob = (api, [params]..., cb) ->
 				oauth.complete verifier, token, secret, cb
 		else
 			read prompt: "Hit any key to continue...", (err) ->
+				console.log ""
 				oauth.complete token, secret, cb 
 
 exports.oauthConsole = (api, [params]..., cb) ->
@@ -625,7 +626,7 @@ exports.oauthConsole = (api, [params]..., cb) ->
 	
 	# OAuth callback.
 	app.use oauth.middleware (req, res, next) ->
-		res.send "Authenticated user. Check your console, hero."
+		res.send "<h1>Oauthenticated.</h1><p>Return to your console, hero!</p>"
 		process.nextTick -> cb 0, req.user
 	# Login page.
 	app.get '/login/', (req, res) ->

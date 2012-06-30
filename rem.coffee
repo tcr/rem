@@ -112,18 +112,15 @@ sendHttpRequest = (method, endpointUrl, mime, body, handlers = {}) ->
 # Parsed hypermedia response and helper methods.
 
 class HyperMedia
-	constructor: (@res, @text) ->
+	constructor: (@res, @type, @text) ->
 		@statusCode = Number(@res.statusCode)
 		@errorCode = if @statusCode > 400 then @statusCode else 0
 		
 		# Parse body
 		try
-			if @res.headers['content-type'].replace(/\s+|;.*/g, '') in ['text/xml', 'application/xml', 'application/atom+xml']
-				@type = 'xml'
+			if @type == 'xml'
 				@data = @xml = (libxmljs ?= require('libxmljs')).parseXmlString @text
-
 			else
-				@type = 'json'
 				@data = @json = JSON.parse @text
 		catch e
 
@@ -239,13 +236,13 @@ class API
 					filter endpoint
 
 				# Process HTTP request through authentication scheme.
-				@processRequest method, endpoint.toString(), mime, body, (err, data, res) ->
+				@processRequest method, endpoint.toString(), mime, body, (err, data, res) =>
 					# User callbacks.
 					return unless cb
 					if err
 						cb(err, null, null)
 					else
-						media = new HyperMedia res, data
+						media = new HyperMedia res, @format, data
 						cb media.errorCode, media.data, media
 
 	processRequest: (method, endpointUrl, mime, body, cb) ->
@@ -654,7 +651,7 @@ class AWSSignatureAPI extends API
 		endpoint.query.Timestamp = new Date().toJSON()
 		# Create a signature of query arguments.
 		# TODO(tcr) also post arguments...
-		hash = crypto.createHmac 'sha256', @api.opts.secret
+		hash = crypto.createHmac 'sha256', @opts.secret
 		hash.update [
 			# Method
 			"GET"

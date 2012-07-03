@@ -1,6 +1,6 @@
 { "name": "rem"
 , "description": "REST made easy. Extensible, and includes support for many popular APIs."
-, "version": "0.3.2"
+, "version": "0.4.0"
 , "author"        : "Tim Cameron Ryan <tim@timryan.org>"
 , "contributors"  : []
 , "dependencies"  : {
@@ -8,8 +8,10 @@
     "coffee-script": "1.2.0",
     "oauth": "0.9.6",
     "tough-cookie": "0.9.8",
-    "read": "0.0.2",
-    "q": "0.8.5"
+    "read": "0.1.0",
+    "q": "0.8.5",
+    "nconf": "0.6.0",
+    "osenv": "0.0.3"
   }
 , "main": "./rem.coffee"
 , "keywords": ["rem", "javascript", "rest", "api", "facebook", "dropbox", "twitter"]

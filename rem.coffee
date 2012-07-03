@@ -82,7 +82,7 @@ sendHttpRequest = (method, endpointUrl, mime, body, handlers = {}) ->
 			# Attempt to follow Location: headers.
 			if res.statusCode in [301, 302, 303] and res.headers['location']
 				try
-					request method, res.headers['location'], mime, body, opts
+					sendHttpRequest method, res.headers['location'], mime, body, handlers
 				catch e
 				return
 
@@ -671,6 +671,38 @@ class AWSSignatureAPI extends API
 		sendHttpRequest method, endpoint.toString(), mime, body, data: cb
 
 exports.aws = (api) -> callable new AWSSignatureAPI api.manifest, api.opts
+
+# Generic console
+# ---------------
+
+# TODO more than oauth
+exports.console = exports.oauthConsole
+
+# My Console
+# ----------
+
+nconf = require 'nconf'
+path = require 'path'
+osenv = require 'osenv'
+
+exports.myConsole = (name, version, [params]..., cb) ->
+	nconf.file path.join(osenv.home(), '.rem.json')
+
+	next = ->
+		{key, secret} = nconf.get(name)
+		api = rem.load name, version, {key, secret}
+		rem.console api, (if params then [params] else [])..., cb
+
+	if nconf.get(name) and nconf.get(name).key and nconf.get(name).secret
+		next()
+	else
+		read prompt: name + ' API key: ', (err, key) ->
+			read prompt: name + ' API secret: ', (err, secret) ->
+				nconf.set name + ':key', key
+				nconf.set name + ':secret', secret
+				nconf.save (err) ->
+					if err then console.log err
+					else next()
 
 # Public API
 # ----------

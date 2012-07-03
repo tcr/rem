@@ -13,7 +13,7 @@
     "nconf": "0.6.0",
     "osenv": "0.0.3"
   }
-, "main": "./rem.coffee"
+, "main": "./rem.js"
 , "keywords": ["rem", "javascript", "rest", "api", "facebook", "dropbox", "twitter"]
 , "repository":
   { "type" : "git"

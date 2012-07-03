@@ -696,6 +696,7 @@ exports.myConsole = (name, version, [params]..., cb) ->
 	if nconf.get(name) and nconf.get(name).key and nconf.get(name).secret
 		next()
 	else
+		console.log 'Initializing API keys for ' + name + ' on first use.'
 		read prompt: name + ' API key: ', (err, key) ->
 			read prompt: name + ' API secret: ', (err, secret) ->
 				nconf.set name + ':key', key

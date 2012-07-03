@@ -1,4 +1,4 @@
-var rem = require('../rem');
+var rem = require('../../rem');
 var read = require('read');
 
 // Create our Twitter console.

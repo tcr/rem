@@ -1,4 +1,4 @@
-var rem = require('../rem');
+var rem = require('../../rem');
 
 // Create our facebook console.
 rem.myConsole('facebook', 1.0, {

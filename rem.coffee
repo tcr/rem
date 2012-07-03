@@ -197,10 +197,11 @@ class API
 		# Add auth methods.
 		#@auth = new authtypes[@manifest.auth?.type ? 'unauthenticated'] this, @manifest.auth
 
-	call: (pathname, query) ->
-		url = new Url('')
-		url.pathname = pathname
-		url.query = query
+	call: (args...) ->
+		if typeof args[args.length-1] != 'string' then query = args.pop()
+		url = new Url ''
+		url.pathname = args.join '/'
+		url.query = query or {}
 
 		# Return a new route with data preparation.
 		return new Route url, @manifest.uploadFormat,
@@ -626,12 +627,12 @@ exports.oauthConsole = (api, [params]..., cb) ->
 		res.send "<h1>Oauthenticated.</h1><p>Return to your console, hero!</p>"
 		process.nextTick -> cb 0, req.user
 	# Login page.
-	app.get '/login/', (req, res) ->
+	app.get '/', (req, res) ->
 		oauth.startSession req, params or {}, (url) ->
 			res.redirect url
 	# Listen on server.
 	app.listen port
-	console.log 'Visit:', "http://localhost:#{port}/login/"
+	console.log 'Visit:', "http://localhost:#{port}/"
 	console.log ""
 
 # AWS Signature
@@ -721,8 +722,10 @@ exports.load = (name, version = '1', opts) ->
 	if not manifest? then throw 'Manifest not found'
 	return exports.create manifest, opts
 
-exports.url = (url, query = {}) ->
-	url = new Url url
-	Object.merge url.query, query
+exports.url = (args...) ->
+	if typeof args[args.length-1] != 'string' then query = args.pop()
+	url = new Url args.join '/'
+	Object.merge url.query, query or {}
+
 	return new Route url, 'form', (method, url, mime, body, cb = null) =>
 		sendHttpRequest method, url, mime, body, if cb then {data: cb} else {}

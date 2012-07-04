@@ -214,8 +214,9 @@ class API
 			return cont()
 		
 		if @_persistConfig and nconf.get(@manifest.id)
-			{@key, @secret} = nconf.get(@manifest.id)
-			@opts.key = @key; @opts.secret = @secret
+			for k, v of nconf.get(@manifest.id)
+				@opts[k] = v
+			{@key, @secret} = @opts
 			return cont()
 
 		console.log clc.yellow 'Initializing API keys for ' + @manifest.id + ' on first use.'

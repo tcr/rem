@@ -5,7 +5,7 @@ var fb = rem.load('facebook', 1.0).prompt();
 
 // Authenticate user via the console.
 rem.console(fb, {
-  scope: ["email", "publish_stream", "read_stream", "user_photos"]
+  scope: ["user_photos"]
 }, function (err, user) {
 
   // Read our profile.

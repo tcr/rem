@@ -4,8 +4,10 @@ var rem = require('../../rem');
 rem.myConsole('dropbox', '1', function (err, user) {
 
   // Create a file.
-  user('files_put/sandbox/REM.txt')
-  .put('text/plain', 'REM is hiding in your dropcube', function(err, json) {
+  user('files_put/sandbox/REM.txt').put(
+    'text/plain',
+    'REM is hiding in your dropcube'
+  , function(err, json) {
     console.log('PUT file: (error', err, ')');
     console.log(json);
   });

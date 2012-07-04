@@ -17,11 +17,16 @@ fs = require 'fs'
 Q = require 'q'
 read = require 'read'
 express = require 'express'
+nconf = require 'nconf'
+path = require 'path'
+osenv = require 'osenv'
+clc = require 'cli-color'
 # Conditional requires.
 libxmljs = null
 
 # Config
 USER_AGENT = 'Mozilla/5.0 (compatible; REMbot/1.0; +http://rem.tcr.io/)'
+nconf.file path.join(osenv.home(), '.rem.json')
 
 # Alias
 rem = exports
@@ -194,8 +199,43 @@ class API
 			@filters.push (endpoint) =>
 				for qk, qv of @manifest.params then endpoint.query[qk] = qv
 
-		# Add auth methods.
-		#@auth = new authtypes[@manifest.auth?.type ? 'unauthenticated'] this, @manifest.auth
+	# Configuration prompt.
+
+	_promptConfig: false
+	_persistConfig: false
+
+	prompt: (@_persistConfig = true) ->
+		@_promptConfig = true
+		return this
+
+	configure: (cont) ->
+		# Optionally prompt for API key/secret.
+		if @key or not (@_promptConfig and @manifest.id)
+			return cont()
+		
+		if @_persistConfig and nconf.get(@manifest.id)
+			{@key, @secret} = nconf.get(@manifest.id)
+			@opts.key = @key; @opts.secret = @secret
+			return cont()
+
+		console.log clc.yellow 'Initializing API keys for ' + @manifest.id + ' on first use.'
+		if @manifest.control
+			console.log clc.yellow('Application control panel:'), @manifest.control
+		read prompt: clc.yellow(@manifest.id + ' API key: '), (err, @key) =>
+			@opts.key = key
+			read prompt: clc.yellow(@manifest.id + ' API secret: '), (err, @secret) =>
+				@opts.secret = secret
+				if @_persistConfig
+					nconf.set @manifest.id + ':key', key
+					nconf.set @manifest.id + ':secret', secret
+					nconf.save (err, json) ->
+						console.log clc.yellow 'Keys saved in ~/.rem.json\n'
+						cont()
+				else
+					console.log ''
+					cont()
+
+	# Callable function.
 
 	call: (args...) ->
 		if typeof args[args.length-1] != 'string' then query = args.pop()
@@ -206,45 +246,48 @@ class API
 		# Return a new route with data preparation.
 		return new Route url, @manifest.uploadFormat,
 			(method, path, mime, body, cb = null) =>
-				# Expand payload shorthand.
-				if typeof body == 'object'
-					[mime, body] = switch mime
-						when 'form', 'application/x-www-form-urlencoded' 
-							['application/x-www-form-urlencoded', querystring.stringify(body)]
-						when 'json', 'application/json'
-							['application/json', safeJSONStringify(body)]
-						else
-							[mime, body]
-				# Normalize path.
-				path = path.replace(/^(?!\/)/, '/')
+				@configure =>
+					# Expand payload shorthand.
+					if typeof body == 'object'
+						[mime, body] = switch mime
+							when 'form', 'application/x-www-form-urlencoded' 
+								['application/x-www-form-urlencoded', querystring.stringify(body)]
+							when 'json', 'application/json'
+								['application/json', safeJSONStringify(body)]
+							else
+								[mime, body]
+					# Normalize path.
+					path = path.replace(/^(?!\/)/, '/')
 
-				# Determine base that matches path name.
-				if typeof @manifest.base == 'string'
-					base = @manifest.base
-				else
-					base = ''
-					for patt in @manifest.base
-						if typeof patt == 'string'
-							base = patt
-							break
-						if path.match new RegExp(patt[0])
-							base = patt[1]
-							break
-				# Construct complete endpoint path.
-				endpoint = new Url base + path
-				# Apply manifest filters.
-				for filter in @filters
-					filter endpoint
-
-				# Process HTTP request through authentication scheme.
-				@processRequest method, endpoint.toString(), mime, body, (err, data, res) =>
-					# User callbacks.
-					return unless cb
-					if err
-						cb(err, null, null)
+					# Determine base that matches path name.
+					if typeof @manifest.base == 'string'
+						base = @manifest.base
 					else
-						media = new HyperMedia res, @format, data
-						cb media.errorCode, media.data, media
+						base = ''
+						for patt in @manifest.base
+							if typeof patt == 'string'
+								base = patt
+								break
+							if path.match new RegExp(patt[0])
+								base = patt[1]
+								break
+					# Construct complete endpoint path.
+					endpoint = new Url base + path
+					# Apply manifest filters.
+					for filter in @filters
+						filter endpoint
+
+					# Process HTTP request through authentication scheme.
+					@processRequest method, endpoint.toString(), mime, body, (err, data, res) =>
+						# User callbacks.
+						return unless cb
+						if err
+							cb(err, null, null)
+						else
+							media = new HyperMedia res, @format, data
+							cb media.errorCode, media.data, media
+
+					return
 
 	processRequest: (method, endpointUrl, mime, body, cb) ->
 		sendHttpRequest method, endpointUrl, mime, body, data: cb
@@ -257,14 +300,6 @@ class API
 	head: (args...) -> @('').head args...
 	put: (args...) -> @('').put args...
 	patch: (args...) -> @('').patch args...
-
-	# Save/restore state.
-
-	saveState: (cb) ->
-		@auth.saveState cb
-
-	loadState: (data, cb = null) ->
-		@auth.loadState data, cb
 
 # Authentication Mechanisms
 # =========================
@@ -293,7 +328,7 @@ class CookieSessionAPI extends API
 class CookieSessionAuthentication
 	constructor: (@api) ->
 
-	authenticate: (username, password, cb) ->		
+	authenticate: (username, password, cb) ->
 		# HTTP Request.
 		jar = new CookieJar()
 		endpointUrl = 'http://www.reddit.com/api/login'
@@ -398,26 +433,27 @@ class OAuth1Authentication
 			throw new Error 'Out-of-band OAuth for this API is not permitted.'
 		@oauthRedirect = redirect or @config.oobCallback or `undefined`
 
-		@oauth = new nodeoauth.OAuth @config.requestEndpoint, @config.accessEndpoint,
-			@api.key, @api.secret, @config.version or '1.0', @oauthRedirect, "HMAC-SHA1", null,
-			{'User-Agent': USER_AGENT, "Accept": "*/*", "Connection": "close"}
-
 	start: ([params]..., cb) ->
-		# Filter parameters.
-		params = Object.merge (params or {}), (@config.params or {})
-		if params.scope? and typeof params.scope == 'object'
-			params.scope = params.scope.join(@config.scopeSeparator or ' ')
-		# Needed for Twitter, etc.
-		if @oauthRedirect then params['oauth_callback'] = @oauthRedirect
+		@api.configure =>
+			@oauth = new nodeoauth.OAuth @config.requestEndpoint, @config.accessEndpoint,
+				@api.key, @api.secret, @config.version or '1.0', @oauthRedirect, "HMAC-SHA1", null,
+				{'User-Agent': USER_AGENT, "Accept": "*/*", "Connection": "close"}
 
-		@oauth.getOAuthRequestToken params, (err, oauthRequestToken, oauthRequestSecret, results) =>
-			if err
-				console.error "Error requesting OAuth token: " + JSON.stringify(err)
-			else
-				authurl = new Url(@config.authorizeEndpoint)
-				authurl.query.oauth_token = oauthRequestToken
-				if @oauthRedirect then authurl.query.oauth_callback = @oauthRedirect
-				cb authurl.toString(), oauthRequestToken, oauthRequestSecret, results
+			# Filter parameters.
+			params = Object.merge (params or {}), (@config.params or {})
+			if params.scope? and typeof params.scope == 'object'
+				params.scope = params.scope.join(@config.scopeSeparator or ' ')
+			# Needed for Twitter, etc.
+			if @oauthRedirect then params['oauth_callback'] = @oauthRedirect
+
+			@oauth.getOAuthRequestToken params, (err, oauthRequestToken, oauthRequestSecret, results) =>
+				if err
+					console.error "Error requesting OAuth token: " + JSON.stringify(err)
+				else
+					authurl = new Url(@config.authorizeEndpoint)
+					authurl.query.oauth_token = oauthRequestToken
+					if @oauthRedirect then authurl.query.oauth_callback = @oauthRedirect
+					cb authurl.toString(), oauthRequestToken, oauthRequestSecret, results
 
 	complete: ([verifier]..., oauthRequestToken, oauthRequestSecret, cb) ->
 		if not verifier and (not @oob or @config.oobVerifier)
@@ -536,15 +572,16 @@ class OAuth2Authentication
 			throw new Error 'Out-of-band OAuth for this API is not permitted.'
 		@oauthRedirect = redirect or @config.oobCallback or `undefined`
 
-		@oauth = new nodeoauth.OAuth2 @api.key, @api.secret, @config.base, @config.authorizePath, @config.tokenPath
-
 	start: ([params]..., cb) ->
-		params = Object.merge (@config.params or {}), (params or {})
-		if params.scope? and typeof params.scope == 'object'
-			params.scope = params.scope.join(@config.scopeSeparator or ' ')
+		@api.configure =>
+			@oauth = new nodeoauth.OAuth2 @api.key, @api.secret, @config.base, @config.authorizePath, @config.tokenPath
+			
+			params = Object.merge (@config.params or {}), (params or {})
+			if params.scope? and typeof params.scope == 'object'
+				params.scope = params.scope.join(@config.scopeSeparator or ' ')
 
-		params.redirect_uri = @oauthRedirect
-		cb @oauth.getAuthorizeUrl(params)
+			params.redirect_uri = @oauthRedirect
+			cb @oauth.getAuthorizeUrl(params)
 
 	complete: (verifier, [token, secret]..., cb) ->
 		if not @oob
@@ -602,38 +639,41 @@ exports.oauth2 = (api, callback) -> new OAuth2Authentication(api, callback)
 # -------------
 
 exports.oauthConsoleOob = (api, [params]..., cb) ->
-	# Out-of-band authentication.
-	oauth = rem.oauth(api)
-	oauth.start (url, token, secret) ->
-		console.log "Visit:", url
-		if api.manifest.auth.oobVerifier
-			read prompt: "Type in the verification code: ", (err, verifier) ->
-				oauth.complete verifier, token, secret, cb
-		else
-			read prompt: "Hit any key to continue...", (err) ->
-				console.log ""
-				oauth.complete token, secret, cb 
+	api.configure ->
+		# Out-of-band authentication.
+		oauth = rem.oauth(api)
+		oauth.start (url, token, secret) ->
+			console.log clc.yellow "To authenticate, visit: " + url
+			if api.manifest.auth.oobVerifier
+				read prompt: clc.yellow("Type in the verification code: "), (err, verifier) ->
+					oauth.complete verifier, token, secret, cb
+			else
+				read prompt: clc.yellow("Hit any key to continue..."), (err) ->
+					console.log ""
+					oauth.complete token, secret, cb 
 
 exports.oauthConsole = (api, [params]..., cb) ->
-	# Create OAuth server authentication.
-	port = params?.port ? 3000
-	oauth = rem.oauth(api, "http://localhost:#{port}/oauth/callback/")
-	app = express.createServer()
-	app.use express.cookieParser()
-	app.use express.session(secret: "!")
-	
-	# OAuth callback.
-	app.use oauth.middleware (req, res, next) ->
-		res.send "<h1>Oauthenticated.</h1><p>Return to your console, hero!</p>"
-		process.nextTick -> cb 0, req.user
-	# Login page.
-	app.get '/', (req, res) ->
-		oauth.startSession req, params or {}, (url) ->
-			res.redirect url
-	# Listen on server.
-	app.listen port
-	console.log 'Visit:', "http://localhost:#{port}/"
-	console.log ""
+	api.configure ->
+		# Create OAuth server authentication.
+		port = params?.port ? 3000
+		oauth = rem.oauth(api, "http://localhost:#{port}/oauth/callback/")
+		app = express.createServer()
+		app.use express.cookieParser()
+		app.use express.session(secret: "!")
+		
+		# OAuth callback.
+		app.use oauth.middleware (req, res, next) ->
+			res.send "<h1>Oauthenticated.</h1><p>Return to your console, hero!</p><p><a href='/'>Retry?</a></p>"
+			console.log ""
+			process.nextTick -> cb 0, req.user
+		# Login page.
+		app.get '/', (req, res) ->
+			oauth.startSession req, params or {}, (url) ->
+				res.redirect url
+		# Listen on server.
+		app.listen port
+		console.log clc.yellow "To authenticate, visit: http://localhost:#{port}/"
+		console.log clc.yellow "(Note: Your callback URL should point to http://localhost:#{port}/oauth/callback/)"
 
 # AWS Signature
 # -------------
@@ -679,33 +719,6 @@ exports.aws = (api) -> callable new AWSSignatureAPI api.manifest, api.opts
 # TODO more than oauth
 exports.console = exports.oauthConsole
 
-# My Console
-# ----------
-
-nconf = require 'nconf'
-path = require 'path'
-osenv = require 'osenv'
-
-exports.myConsole = (name, version, [params]..., cb) ->
-	nconf.file path.join(osenv.home(), '.rem.json')
-
-	next = ->
-		{key, secret} = nconf.get(name)
-		api = rem.load name, version, {key, secret}
-		rem.console api, (if params then [params] else [])..., cb
-
-	if nconf.get(name) and nconf.get(name).key and nconf.get(name).secret
-		next()
-	else
-		console.log 'Initializing API keys for ' + name + ' on first use.'
-		read prompt: name + ' API key: ', (err, key) ->
-			read prompt: name + ' API secret: ', (err, secret) ->
-				nconf.set name + ':key', key
-				nconf.set name + ':secret', secret
-				nconf.save (err) ->
-					if err then console.log err
-					else next()
-
 # Public API
 # ----------
 
@@ -720,6 +733,8 @@ exports.load = (name, version = '1', opts) ->
 	catch e
 		throw new Error 'Unable to find API ' + name + '::' + version
 	if not manifest? then throw 'Manifest not found'
+	manifest.id = name
+	manifest.version = version
 	return exports.create manifest, opts
 
 exports.url = (args...) ->

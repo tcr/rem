@@ -1,7 +1,10 @@
 var rem = require('../../rem');
 
-// Create the Dropbox console.
-rem.myConsole('dropbox', '1', function (err, user) {
+// Create Dropbox API, prompting for key/secret.
+var dbox = rem.load('dropbox', 1.0).prompt();
+
+// Authenticate user via the console.
+rem.console(dbox, function (err, user) {
 
   // Create a file.
   user('files_put/sandbox/REM.txt').put(

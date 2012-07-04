@@ -1,8 +1,11 @@
 var rem = require('../../rem');
 
-// Create our facebook console.
-rem.myConsole('facebook', 1.0, {
-  scope: ["email", "publish_stream", "read_stream"]
+// Create Dropbox API, prompting for key/secret.
+var fb = rem.load('facebook', 1.0).prompt();
+
+// Authenticate user via the console.
+rem.console(fb, {
+  scope: ["email", "publish_stream", "read_stream", "user_photos"]
 }, function (err, user) {
 
   // Read our profile.

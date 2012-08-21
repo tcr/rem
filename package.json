@@ -1,22 +1,31 @@
-{ "name": "rem"
-, "description": "REST made easy. Extensible, and includes support for many popular APIs."
-, "version": "0.4.0"
-, "author"        : "Tim Cameron Ryan <tim@timryan.org>"
-, "contributors"  : []
-, "dependencies"  : {
-	"express": "2.5.8",
-    "coffee-script": "1.2.0",
+{
+  "name": "rem",
+  "description": "REST made easy. Extensible, and includes support for many popular APIs.",
+  "version": "0.4.0",
+  "author": "Tim Cameron Ryan <tim@timryan.org>",
+  "contributors": [],
+  "dependencies": {
+    "express": "2.5.8",
     "oauth": "0.9.6",
     "tough-cookie": "0.9.8",
     "read": "0.1.0",
-    "q": "0.8.5",
     "nconf": "0.6.0",
-    "osenv": "0.0.3"
+    "osenv": "0.0.3",
+    "cli-color": "~0.1.7",
+    "async": "~0.1.22"
+  },
+  "main": "./rem.js",
+  "keywords": [
+    "rem",
+    "javascript",
+    "rest",
+    "api",
+    "facebook",
+    "dropbox",
+    "twitter"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/timcameronryan/rem-node.git"
   }
-, "main": "./rem.js"
-, "keywords": ["rem", "javascript", "rest", "api", "facebook", "dropbox", "twitter"]
-, "repository":
-  { "type" : "git"
-  , "url" : "git://github.com/timcameronryan/rem-node.git"
-  } 
 }

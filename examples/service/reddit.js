@@ -9,10 +9,13 @@ read({prompt: 'Username: '}, function (err, user) {
   });
 });
 
-example = function (err, user) {
-  if (err) { console.log(err); return; }
+function example (err, user) {
+  if (err) {
+  	return console.log(err);
+  }
+
   user('api/me').get(function (err, json) {
     if (err) { console.log(err); return; }
     console.log('Your account:', JSON.stringify(json, null, '  '));
   });
-};
+}

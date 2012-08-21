@@ -9,27 +9,13 @@ http://roy.gbiv.com/untangled/2008/rest-apis-must-be-hypertext-driven
 
 */
 
-var util = require('util');
-var fs = require('fs');
-var path = require('path');
-
-var async = require('async');
-var read = require('read');
-var express = require('express');
-var nconf = require('nconf');
-var osenv = require('osenv');
-var clc = require('cli-color');
-
-// Optional.
-var libxmljs = null;
-
 // Namespace.
 var rem = exports;
 var remutil = require('./remutil');
 
 // Configuration.
 rem.USER_AGENT = 'Mozilla/5.0 (compatible; REMbot/1.0; +http://rem.tcr.io/)';
-nconf.file(path.join(osenv.home(), '.rem.json'));
+rem.CONFIG_FILE = remutil.path.join(require('osenv').home(), '.rem.json');
 
 /**
  * A hypermedia resource.
@@ -165,7 +151,7 @@ var Middleware = (function () {
 
 var API = (function () {
 
-  util.inherits(API, Middleware);
+  remutil.inherits(API, Middleware);
 
   function API (manifest, opts) {
     this.manifest = manifest;
@@ -230,6 +216,13 @@ var API = (function () {
   };
 
   API.prototype.configure = function (cont) {
+    var nconf = require('nconf');
+    var read = require('read');
+    var clc = require('cli-color');
+
+    // Configuration.
+    nconf.file(rem.CONFIG_FILE);
+
     // Optionally prompt for API key/secret.
     var k, v, _ref, _ref1,
       _this = this;
@@ -263,7 +256,7 @@ var API = (function () {
           nconf.set(_this.manifest.id + ':key', key);
           nconf.set(_this.manifest.id + ':secret', secret);
           return nconf.save(function (err, json) {
-            console.log(clc.yellow('Keys saved in ~/.rem.json\n'));
+            console.log(clc.yellow('Keys saved to ' + rem.CONFIG_FILE + '\n'));
             return cont();
           });
         } else {
@@ -279,7 +272,7 @@ var API = (function () {
   API.prototype.call = function () {
     var segments = Array.prototype.slice.call(arguments);
     var query = typeof segments[segments.length - 1] == 'object' ? segments.pop() : {};
-    var pathname = path.join.apply(null, segments);
+    var pathname = remutil.path.join.apply(null, segments);
 
     return new Route(remutil.request.create({
       query: query, pathname: pathname
@@ -313,7 +306,7 @@ var API = (function () {
         // Update the request with base.
         req = remutil.request.url(req, remutil.url.parse(base))
         req = remutil.request.url(req, {
-          pathname: path.join(req.url.pathname, pathname)
+          pathname: remutil.path.join(req.url.pathname, pathname)
         });
 
         // Apply manifest filters.
@@ -389,14 +382,11 @@ rem.create = function (manifest, opts) {
 // TODO Be able to load manifest files locally.
 rem.load = function (name, version, opts) {
   version = version || '1';
-  try {
-    var manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../common', name + '.json')))[version];
-  } catch (e) {
+  var manifest = remutil.lookup(name);
+  if (!manifest || !manifest[version]) {
     throw new Error('Unable to find API ' + name + '::' + version);
   }
-  if (!manifest) {
-    throw 'Manifest not found';
-  }
+  manifest = manifest[version];
   manifest.id = name;
   manifest.version = version;
   return rem.create(manifest, opts);
@@ -406,7 +396,7 @@ rem.url = function () {
   var segments = Array.prototype.slice.call(arguments);
   var query = typeof segments[segments.length - 1] == 'object' ? segments.pop() : {};
   var url = remutil.url.parse(segments.shift());
-  url.pathname = path.join.apply(null, [url.pathname].concat(segments));
+  url.pathname = remutil.path.join.apply(null, [url.pathname].concat(segments));
   url.query = query;
 
   return new Route(remutil.request.create(url), 'form', function (req, next) {

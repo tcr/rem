@@ -193,3 +193,41 @@ remutil.safeJSONStringify = function (s) {
   };
 
 })();
+
+/**
+ * Query string parsing.
+ */
+
+remutil.qs = require('querystring');
+
+/**
+ * Path parsing.
+ */
+
+remutil.path = require('path');
+
+/**
+ * Inheritance.
+ */
+
+remutil.inherits = function (ctor, superCtor) {
+  ctor.super_ = superCtor;
+  ctor.prototype = Object.create(superCtor.prototype, {
+    constructor: {
+      value: ctor,
+      enumerable: false
+    }
+  });
+};
+
+/** 
+ * Manifest lookup.
+ */
+
+remutil.lookup = function (name) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, '../common', name + '.json')));
+  } catch (e) {
+    return null;
+  }
+};

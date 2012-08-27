@@ -1,7 +1,7 @@
 {
   "name": "rem",
   "description": "REST made easy. Extensible, and includes support for many popular APIs.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "author": "Tim Cameron Ryan <tim@timryan.org>",
   "contributors": [],
   "dependencies": {
@@ -14,7 +14,8 @@
     "cli-color": "~0.1.7",
     "async": "~0.1.22"
   },
-  "main": "./rem.js",
+  "bin": "src/cli.js",
+  "main": "./src/rem.js",
   "keywords": [
     "rem",
     "javascript",

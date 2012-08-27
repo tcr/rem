@@ -59,7 +59,7 @@ var Route = (function () {
 
   function Route (req, defaultBodyMime, middleware) {
     this.req = req;
-    this.defaultBodyMime = defaultBodyMime || 'form';
+    this.defaultBodyMime = defaultBodyMime || 'json';
     this.middleware = middleware;
   }
 
@@ -106,7 +106,7 @@ var Route = (function () {
     }
     return this.middleware(remutil.modify(remutil.request.body(this.req, mime, body), {
       method: 'PUT'
-    }, next));
+    }), next);
   };
 
   Route.prototype.del = function (next) {
@@ -171,6 +171,10 @@ var API = (function () {
     }
     this.manifest = remutil.modify(this.manifest, this.manifest.formats[this.format]);
 
+    // User agent.
+    this.pre('request', function (req) {
+      req.headers['User-Agent'] = req.headers['User-Agent'] || rem.USER_AGENT;
+    });
     // Route root pathname.
     if (this.manifest.basepath) {
       this.pre('request', function (req) {
@@ -285,7 +289,7 @@ var API = (function () {
       var api = this;
 
       // Expand payload shorthand.
-      return api.configure(function () {
+      api.configure(function () {
         // Determine base that matches the path name.
         var pathname = req.url.pathname.replace(/^(?!\/)/, '/')
         // Bases can be fixed or an array of (pattern, base) tuples.
@@ -321,6 +325,8 @@ var API = (function () {
           }
         });
       });
+
+      return req;
     }
   };
 
@@ -403,13 +409,15 @@ rem.url = function () {
   url.query = query;
 
   return new Route(remutil.request.create(url), 'form', function (req, next) {
+    req.headers['User-Agent'] = req.headers['User-Agent'] || rem.USER_AGENT;
     remutil.request.send(req, next);
+    return req;
   });
 };
 
 rem.consume = remutil.consumeStream;
 
-if (false) {
+if (typeof require != 'undefined') {
   // Authentication methods.
   require('./oauth');
   require('./aws');

@@ -129,6 +129,7 @@ remutil.safeJSONStringify = function (s) {
       if (typeof mod == 'string') {
         mod = remutil.url.parse(mod);
       }
+      mod.query = remutil.modify(opts.url ? opts.url.query : {}, mod.query);
       opts = remutil.modify(opts, {
         url: opts.url ? remutil.modify(opts.url, mod) : mod
       });

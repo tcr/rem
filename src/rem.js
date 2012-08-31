@@ -36,7 +36,7 @@ var HyperMedia = (function () {
     try {
       if (this.type === 'xml') {
         if (!libxmljs) {
-          libxmljs = require('libxmljs');
+          var libxmljs = require('libxmljs');
         }
         this.data = this.xml = libxmljs.parseXmlString(String(this.data));
       } else {
@@ -188,14 +188,14 @@ var API = (function () {
       this.pre('request', function (req) {
         var params = this.manifest.configParams;
         for (var key in params) {
-          req.url.query[key] = this.opts[key];
+          req.url.query[key] = this.opts[this.manifest.configParams[key]];
         }
       });
     }
     // Route static parameters.
     if (this.manifest.params) {
       this.pre('request', function (req) {
-        var params = this.manifest.configParams;
+        var params = this.manifest.params;
         for (var key in params) {
           req.url.query[key] = params[key];
         }

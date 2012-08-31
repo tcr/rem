@@ -249,15 +249,19 @@ var API = (function () {
     }
     console.log(clc.yellow('Initializing API keys for ' + this.manifest.id + ' on first use.'));
     if (this.manifest.control) {
-      console.log(clc.yellow('Application control panel:'), this.manifest.control);
+      console.log(clc.yellow('Register for an API key here:'), this.manifest.control);
     }
     return read({
       prompt: clc.yellow(this.manifest.id + ' API key: ')
     }, function (err, key) {
       _this.key = key;
       _this.opts.key = key;
+      if (!key) {
+        console.error(clc.red('ERROR:'), 'No API key specified, aborting.');
+        process.exit(1);
+      }
       return read({
-        prompt: clc.yellow(_this.manifest.id + ' API secret: ')
+        prompt: clc.yellow(_this.manifest.id + ' API secret (if provided): ')
       }, function (err, secret) {
         _this.secret = secret;
         _this.opts.secret = secret;
@@ -265,7 +269,8 @@ var API = (function () {
           nconf.set(_this.manifest.id + ':key', key);
           nconf.set(_this.manifest.id + ':secret', secret);
           return nconf.save(function (err, json) {
-            console.log(clc.yellow('Keys saved to ' + configFile + '\n'));
+            console.log(clc.yellow('Your credentials are saved to the configuration file ' + configFile));
+            console.log(clc.yellow('Edit that file to update or change your credentials.\n'));
             return cont();
           });
         } else {

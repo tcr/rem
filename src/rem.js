@@ -44,6 +44,7 @@ var HyperMedia = (function () {
       }
     } catch (e) {
       this.err = e;
+      console.warn('Could not parse data for type ' + this.type + '.')
     }
   }
 
@@ -220,7 +221,7 @@ var API = (function () {
   };
 
   API.prototype.configure = function (cont) {
-    return cont();
+    //return cont();
 
     var nconf = require('nconf');
     var read = require('read');
@@ -228,7 +229,8 @@ var API = (function () {
     var path = require('path');
 
     // Configuration.
-    nconf.file(rem.CONFIG_FILE || path.join(require('osenv').home(), '.rem.json'));
+    var configFile = rem.CONFIG_FILE || path.join(require('osenv').home(), '.rem.json');
+    nconf.file(configFile);
 
     // Optionally prompt for API key/secret.
     var k, v, _ref, _ref1,
@@ -263,7 +265,7 @@ var API = (function () {
           nconf.set(_this.manifest.id + ':key', key);
           nconf.set(_this.manifest.id + ':secret', secret);
           return nconf.save(function (err, json) {
-            console.log(clc.yellow('Keys saved to ' + rem.CONFIG_FILE + '\n'));
+            console.log(clc.yellow('Keys saved to ' + configFile + '\n'));
             return cont();
           });
         } else {

@@ -14,6 +14,9 @@
     "cli-color": "~0.1.7",
     "async": "~0.1.22"
   },
+  "optionalDependencies": {
+    "libxmljs": "~0.6.1"
+  },
   "bin": "src/cli.js",
   "main": "./src/rem.js",
   "keywords": [

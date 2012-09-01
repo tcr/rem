@@ -205,7 +205,7 @@ remutil.lookup = function (name) {
   var fs = require('fs');
   var path = require('path');
   try {
-    return JSON.parse(fs.readFileSync(path.join(__dirname, '../common', name + '.json')));
+    return JSON.parse(fs.readFileSync(path.join(__dirname, '../builtin', name + '.json')));
   } catch (e) {
     return null;
   }

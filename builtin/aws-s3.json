@@ -1,0 +1,8 @@
+{
+  "1": {
+    "name": "Amazon S3",
+    "docs": "http://docs.amazonwebservices.com/AmazonS3/latest/API/APIRest.html",
+    
+    "base": "https://s3.amazonaws.com"
+  }
+}

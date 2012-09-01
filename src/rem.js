@@ -210,70 +210,8 @@ var API = (function () {
 
   // Configuration prompt.
 
-  API.prototype._promptConfig = false;
-
-  API.prototype._persistConfig = false;
-
-  API.prototype.prompt = function (_persistConfig) {
-    this._persistConfig = _persistConfig || _persistConfig == null;
-    this._promptConfig = true;
-    return this;
-  };
-
-  API.prototype.configure = function (cont) {
-    //return cont();
-
-    var nconf = require('nconf');
-    var read = require('read');
-    var clc = require('cli-color');
-    var path = require('path');
-
-    // Configuration.
-    var configFile = rem.CONFIG_FILE || path.join(require('osenv').home(), '.rem.json');
-    nconf.file(configFile);
-
-    // Optionally prompt for API key/secret.
-    var k, v, _ref, _ref1,
-      _this = this;
-    if (this.key || !(this._promptConfig && this.manifest.id)) {
-      return cont();
-    }
-    if (this._persistConfig && nconf.get(this.manifest.id)) {
-      _ref = nconf.get(this.manifest.id);
-      for (k in _ref) {
-        v = _ref[k];
-        this.opts[k] = v;
-      }
-      _ref1 = this.opts, this.key = _ref1.key, this.secret = _ref1.secret;
-      return cont();
-    }
-    console.log(clc.yellow('Initializing API keys for ' + this.manifest.id + ' on first use.'));
-    if (this.manifest.control) {
-      console.log(clc.yellow('Application control panel:'), this.manifest.control);
-    }
-    return read({
-      prompt: clc.yellow(this.manifest.id + ' API key: ')
-    }, function (err, key) {
-      _this.key = key;
-      _this.opts.key = key;
-      return read({
-        prompt: clc.yellow(_this.manifest.id + ' API secret: ')
-      }, function (err, secret) {
-        _this.secret = secret;
-        _this.opts.secret = secret;
-        if (_this._persistConfig) {
-          nconf.set(_this.manifest.id + ':key', key);
-          nconf.set(_this.manifest.id + ':secret', secret);
-          return nconf.save(function (err, json) {
-            console.log(clc.yellow('Keys saved to ' + configFile + '\n'));
-            return cont();
-          });
-        } else {
-          console.log('');
-          return cont();
-        }
-      });
-    });
+  API.prototype.configure = function(cont) {
+    return cont();
   };
 
   // Callable function.
@@ -375,6 +313,85 @@ var API = (function () {
     var route = this('');
     return route.patch.apply(route, arguments);
   };
+
+  // Configuration/prompt
+
+  if (typeof require !== 'undefined') {
+
+    API.prototype._promptConfig = false;
+
+    API.prototype._persistConfig = false;
+
+    API.prototype.prompt = function (_persistConfig) {
+      this._persistConfig = _persistConfig || _persistConfig == null;
+      this._promptConfig = true;
+      return this;
+    };
+
+    API.prototype.configure = function (cont) {
+      //return cont();
+
+      var nconf = require('nconf');
+      var read = require('read');
+      var clc = require('cli-color');
+      var path = require('path');
+
+      // Configuration.
+      var configFile = rem.CONFIG_FILE || path.join(require('osenv').home(), '.rem.json');
+      nconf.file(configFile);
+
+      // Optionally prompt for API key/secret.
+      var k, v, _ref, _ref1,
+        _this = this;
+      if (this.key || !(this._promptConfig && this.manifest.id)) {
+        return cont();
+      }
+      if (this._persistConfig && nconf.get(this.manifest.id)) {
+        _ref = nconf.get(this.manifest.id);
+        for (k in _ref) {
+          v = _ref[k];
+          this.opts[k] = v;
+        }
+        _ref1 = this.opts, this.key = _ref1.key, this.secret = _ref1.secret;
+        return cont();
+      }
+      console.log(clc.yellow('Initializing API keys for ' + this.manifest.id + ' on first use.'));
+      if (this.manifest.control) {
+        console.log(clc.yellow('Register for an API key here:'), this.manifest.control);
+      }
+      return read({
+        prompt: clc.yellow(this.manifest.id + ' API key: ')
+      }, function (err, key) {
+        _this.key = key;
+        _this.opts.key = key;
+        if (!key) {
+          console.error(clc.red('ERROR:'), 'No API key specified, aborting.');
+          process.exit(1);
+        }
+        return read({
+          prompt: clc.yellow(_this.manifest.id + ' API secret (if provided): ')
+        }, function (err, secret) {
+          _this.secret = secret;
+          _this.opts.secret = secret;
+          if (_this._persistConfig) {
+            nconf.set(_this.manifest.id + ':key', key);
+            nconf.set(_this.manifest.id + ':secret', secret);
+            return nconf.save(function (err, json) {
+              console.log(clc.yellow('Your credentials are saved to the configuration file ' + configFile));
+              console.log(clc.yellow('Edit that file to update or change your credentials.\n'));
+              return cont();
+            });
+          } else {
+            console.log('');
+            return cont();
+          }
+        });
+      });
+    };
+    
+  }
+
+  // Return.
 
   return API;
 

@@ -113,7 +113,7 @@ remutil.url = {
 
   path: function (url) {
     return url.pathname
-      + (url.query ? '?' + remutil.qs.stringify(url.query) : '')
+      + (remutil.qs.stringify(url.query) ? '?' + remutil.qs.stringify(url.query) : '')
       + (url.hash ? '#' + encodeURIComponent(url.hash) : '');
   }
 

@@ -121,6 +121,10 @@ var OAuth1Authentication = (function () {
       throw new Error('Out-of-band OAuth for this API is not permitted.');
     }
     this.oauthRedirect = redirect || this.config.oobCallback || undefined;
+
+    api.pre('configure', function () {
+      console.log(clc.yellow("(Note: Your callback URL should point to " + this.oauthRedirect + ')'));
+    }.bind(this));
   }
 
   OAuth1Authentication.prototype.start = function () {
@@ -128,9 +132,6 @@ var OAuth1Authentication = (function () {
     var next = args.pop();
     var params = args.pop();
 
-    if (!this.api.key) {
-      console.log(clc.yellow("Your callback URL should point to " + this.oauthRedirect));
-    }
     this.api.configure(function () {
       this.oauth = new nodeoauth.OAuth(this.config.requestEndpoint, 
         this.config.accessEndpoint, this.api.key, this.api.secret,
@@ -355,6 +356,10 @@ var OAuth2Authentication = (function () {
       throw new Error('Out-of-band OAuth for this API is not permitted.');
     }
     this.oauthRedirect = redirect || this.config.oobCallback || undefined;
+
+    api.pre('configure', function () {
+      console.log(clc.yellow("(Note: Your callback URL should point to " + this.oauthRedirect + ')'));
+    }.bind(this));
   }
 
   OAuth2Authentication.prototype.start = function () {
@@ -364,9 +369,6 @@ var OAuth2Authentication = (function () {
 
     var cb, params, _arg, _i;
     var _this = this;
-    if (!this.api.key) {
-      console.log(clc.yellow("Your callback URL should point to " + this.oauthRedirect));
-    }
     this.api.configure(function () {
       _this.oauth = new nodeoauth.OAuth2(_this.api.key, _this.api.secret,
         _this.config.base, _this.config.authorizePath, _this.config.tokenPath);
@@ -482,24 +484,26 @@ rem.oauthConsoleOob = function () {
   var api = args.shift();
   var params = args.pop(); // optional
 
-  // Out-of-band authentication.
-  var oauth = rem.oauth(api);
-  return oauth.start(function (url, token, secret) {
-    console.log(clc.yellow("To authenticate, visit: " + url));
-    if (api.manifest.auth.oobVerifier) {
-      return read({
-        prompt: clc.yellow("Type in the verification code: ")
-      }, function (err, verifier) {
-        return oauth.complete(verifier, token, secret, cb);
-      });
-    } else {
-      return read({
-        prompt: clc.yellow("Hit any key to continue...")
-      }, function (err) {
-        console.log("");
-        return oauth.complete(token, secret, cb);
-      });
-    }
+  return api.configure(function () {
+    // Out-of-band authentication.
+    var oauth = rem.oauth(api);
+    return oauth.start(function (url, token, secret) {
+      console.log(clc.yellow("To authenticate, visit: " + url));
+      if (api.manifest.auth.oobVerifier) {
+        return read({
+          prompt: clc.yellow("Type in the verification code: ")
+        }, function (err, verifier) {
+          return oauth.complete(verifier, token, secret, cb);
+        });
+      } else {
+        return read({
+          prompt: clc.yellow("Hit any key to continue...")
+        }, function (err) {
+          console.log("");
+          return oauth.complete(token, secret, cb);
+        });
+      }
+    });
   });
 };
 
@@ -529,11 +533,13 @@ rem.oauthConsole = function () {
   }));
   // Login page.
   app.get('/', function (req, res) {
-    oauth.startSession(req, params || {}, function (url) {
-      res.redirect(url);
+    return oauth.startSession(req, params || {}, function (url) {
+      return res.redirect(url);
     });
   });
   // Listen on server.
-  app.listen(port);
-  console.log(clc.yellow("To authenticate, visit: http://localhost:" + port + "/"));
+  api.configure(function () {
+    app.listen(port);
+    console.log(clc.yellow("To authenticate, visit: http://localhost:" + port + "/"));
+  });
 };

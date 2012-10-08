@@ -359,7 +359,9 @@ var API = (function () {
       if (this.manifest.control) {
         console.log(clc.yellow('Register for an API key here:'), this.manifest.control);
       }
-      return read({
+      this.middleware('configure');
+
+      read({
         prompt: clc.yellow(this.manifest.id + ' API key: ')
       }, function (err, key) {
         _this.key = key;

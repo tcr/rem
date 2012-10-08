@@ -25,7 +25,7 @@ rem.console(gh, {scope: ["user", "repo"]}, function (err, user) {
 
 ## Examples
 
-REM has examples for authentication and for [each builtin API configuration.](https://github.com/tcr/rem-js/tree/master/examples) These examples can be run from the command line:
+REM has examples for authentication and for [each builtin API service.](https://github.com/tcr/rem-js/tree/master/examples) These examples can be run from the command line:
 
     node examples/service/dropbox.js
 

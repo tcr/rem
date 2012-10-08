@@ -121,6 +121,10 @@ var OAuth1Authentication = (function () {
       throw new Error('Out-of-band OAuth for this API is not permitted.');
     }
     this.oauthRedirect = redirect || this.config.oobCallback || undefined;
+
+    api.pre('configure', function () {
+      console.log(clc.yellow("(Note: Your callback URL should point to " + this.oauthRedirect + ')'));
+    }.bind(this));
   }
 
   OAuth1Authentication.prototype.start = function () {
@@ -128,7 +132,7 @@ var OAuth1Authentication = (function () {
     var next = args.pop();
     var params = args.pop();
 
-    return this.api.configure(function () {
+    this.api.configure(function () {
       this.oauth = new nodeoauth.OAuth(this.config.requestEndpoint, 
         this.config.accessEndpoint, this.api.key, this.api.secret,
         this.config.version || '1.0', this.oauthRedirect, "HMAC-SHA1", null, {
@@ -352,6 +356,10 @@ var OAuth2Authentication = (function () {
       throw new Error('Out-of-band OAuth for this API is not permitted.');
     }
     this.oauthRedirect = redirect || this.config.oobCallback || undefined;
+
+    api.pre('configure', function () {
+      console.log(clc.yellow("(Note: Your callback URL should point to " + this.oauthRedirect + ')'));
+    }.bind(this));
   }
 
   OAuth2Authentication.prototype.start = function () {
@@ -361,7 +369,7 @@ var OAuth2Authentication = (function () {
 
     var cb, params, _arg, _i;
     var _this = this;
-    return this.api.configure(function () {
+    this.api.configure(function () {
       _this.oauth = new nodeoauth.OAuth2(_this.api.key, _this.api.secret,
         _this.config.base, _this.config.authorizePath, _this.config.tokenPath);
       params = remutil.modify(_this.config.params || {}, params || {});
@@ -478,8 +486,7 @@ rem.oauthConsoleOob = function () {
 
   return api.configure(function () {
     // Out-of-band authentication.
-    var oauth;
-    oauth = rem.oauth(api);
+    var oauth = rem.oauth(api);
     return oauth.start(function (url, token, secret) {
       console.log(clc.yellow("To authenticate, visit: " + url));
       if (api.manifest.auth.oobVerifier) {
@@ -506,32 +513,32 @@ rem.oauthConsole = function () {
   var api = args.shift();
   var params = args.pop(); // optional
 
-  return api.configure(function () {
-    // Create OAuth server configuration.
-    var app, oauth, port, _ref1;
-    port = (_ref1 = params != null ? params.port : void 0) != null ? _ref1 : 3000;
-    oauth = rem.oauth(api, "http://localhost:" + port + "/oauth/callback/");
-    app = express.createServer();
-    app.use(express.cookieParser());
-    app.use(express.session({
-      secret: "!"
-    }));
+  // Create OAuth server configuration.
+  var app, oauth, port, _ref1;
+  port = (_ref1 = params != null ? params.port : void 0) != null ? _ref1 : 3000;
+  oauth = rem.oauth(api, "http://localhost:" + port + "/oauth/callback/");
+  app = express.createServer();
+  app.use(express.cookieParser());
+  app.use(express.session({
+    secret: "!"
+  }));
 
-    // OAuth callback.
-    app.use(oauth.middleware(function (req, res, next) {
-      res.send("<h1>Oauthenticated.</h1><p>Return to your console, hero!</p><p><a href='/'>Retry?</a></p>");
-      console.log("");
-      return process.nextTick(function () {
-        return cb(null, req.user);
-      });
-    }));
-    // Login page.
-    app.get('/', function (req, res) {
-      return oauth.startSession(req, params || {}, function (url) {
-        return res.redirect(url);
-      });
+  // OAuth callback.
+  app.use(oauth.middleware(function (req, res, next) {
+    res.send("<h1>Oauthenticated.</h1><p>Return to your console, hero!</p><p><a href='/'>Retry?</a></p>");
+    console.log("");
+    return process.nextTick(function () {
+      return cb(null, req.user);
     });
-    // Listen on server.
+  }));
+  // Login page.
+  app.get('/', function (req, res) {
+    return oauth.startSession(req, params || {}, function (url) {
+      return res.redirect(url);
+    });
+  });
+  // Listen on server.
+  api.configure(function () {
     app.listen(port);
     console.log(clc.yellow("To authenticate, visit: http://localhost:" + port + "/"));
   });

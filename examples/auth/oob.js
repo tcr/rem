@@ -1,4 +1,4 @@
-var rem = require('../rem');
+var rem = require('rem');
 var fs = require('fs');
 var read = require('read');
 
@@ -10,28 +10,25 @@ oauth.start(function(url, token, secret) {
   return read({
     prompt: "Hit enter when finished..."
   }, function() {
-    return oauth.complete(token, secret, example);
+    return oauth.complete(token, secret, authorized);
   });
 });
 
-var example = function(err, user) {
+function authorized (err, user) {
   if (err) {
     console.log(err);
     return;
   }
+
   user('files_put/sandbox/REM.txt').put('text/plain', 'REM is hiding in your dropcube', function(err, json) {
     console.log('PUT file: (error', err, ')');
-    return console.log(json);
+    console.log(json);
   });
-  return user('metadata/sandbox/').get(function(err, json) {
-    var f, _i, _len, _ref, _results;
+
+  user('metadata/sandbox/').get(function(err, json) {
     console.log('Sandbox contents: (error', err, ')');
-    _ref = json != null ? json.contents : void 0;
-    _results = [];
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      f = _ref[_i];
-      _results.push(console.log(' -', f.path));
-    }
-    return _results;
+    json.contents.forEach(function (f) {
+      console.log(' -', f.path);
+    });
   });
 };

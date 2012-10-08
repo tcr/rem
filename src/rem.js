@@ -413,7 +413,14 @@ rem.load = function (name, version, opts) {
   version = version || '1';
   var manifest = remutil.lookup(name);
   if (!manifest || !manifest[version]) {
-    throw new Error('Unable to find API ' + name + '::' + version);
+    if (version == '*' && manifest) {
+      var version = Object.keys(manifest).sort().pop();
+      if (!manifest[version]) {
+        throw new Error('Unable to find API ' + JSON.stringify(name) + ' version ' + JSON.stringify(Number(version)) + '. For the latest API, use "*".');
+      }
+    } else {
+      throw new Error('Unable to find API ' + JSON.stringify(name) + '.');
+    }
   }
   manifest = manifest[version];
   manifest.id = name;

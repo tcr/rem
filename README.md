@@ -1,15 +1,16 @@
 # REM. REST easy.
 
-REM is a minimal library to consume REST APIs, constructed around simple
-language idioms and manifests for popular libraries that alleviate
-differences between between configuration, authentication, and formats.
-Getting started with REM is quick and easy.
+REM is a REST library that does away with excessive configuration,
+confusing authentication, and incomplete libraries. Whether using an existing
+API or writing your own, REM is the fewest lines of code between
+reading documentation and getting started. And with support for
+popular services built-in, you might never need another web service library.
 
 To use REM with Node.js, install using `npm`:
 
     npm install rem
 
-And get started:
+And dive right into an API example, with authentication, in just 7 lines:
 
 ```
 var rem = require('rem');
@@ -24,14 +25,25 @@ rem.console(gh, {scope: ["user", "repo"]}, function (err, user) {
 
 ## Examples
 
-[Examples are provided for each predefined API.](https://github.com/tcr/rem-js/tree/master/examples) These examples can be run from the command line:
+REM has examples for authentication and for [each builtin API configuration.](https://github.com/tcr/rem-js/tree/master/examples) These examples can be run from the command line:
 
     node examples/service/dropbox.js
 
 ## Usage
 
-REM includes [configurations for several popular APIs](https://github.com/tcr/rem-schema).
-Getting started with a particular API is as simple is specifying the name and API version:
+REM lets you define an API according to [a JSON schema](https://github.com/tcr/rem-schema):
+
+```javascript
+var yourapi = rem.create({
+  base: 'http://your.api/v1',
+  ...
+}, {
+  format: 'json'
+});
+```
+
+REM also includes [configurations for builtin APIs](https://github.com/tcr/rem-schema/builtin).
+Getting started with an API is as simple is specifying the name and its version:
 
 ```javascript
 var rem = require('rem')
@@ -67,16 +79,6 @@ tw.start(function (url, token, secret) {
         })
     })
 })
-```
-
-You can also define and load your own manifests for your own APIs:
-
-```javascript
-var yourapi = rem.create({
-  base: 'http://your.api/v1', ...
-}, {
-  format: 'json'
-});
 ```
 
 ## Reference

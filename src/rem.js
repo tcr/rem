@@ -358,6 +358,7 @@ var API = (function () {
       console.log(clc.yellow('Initializing API keys for ' + this.manifest.id + ' on first use.'));
       if (this.manifest.control) {
         console.log(clc.yellow('Register for an API key here:'), this.manifest.control);
+        console.log(clc.yellow("(Note: Your callback URL should point to http://localhost:" + port + "/oauth/callback/)"));
       }
       return read({
         prompt: clc.yellow(this.manifest.id + ' API key: ')

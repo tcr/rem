@@ -534,6 +534,5 @@ rem.oauthConsole = function () {
     // Listen on server.
     app.listen(port);
     console.log(clc.yellow("To authenticate, visit: http://localhost:" + port + "/"));
-    return console.log(clc.yellow("(Note: Your callback URL should point to http://localhost:" + port + "/oauth/callback/)"));
   });
 };

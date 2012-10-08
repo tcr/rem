@@ -113,7 +113,7 @@ remutil.url = {
 
   path: function (url) {
     return url.pathname
-      + (url.query ? '?' + remutil.qs.stringify(url.query) : '')
+      + (remutil.qs.stringify(url.query) ? '?' + remutil.qs.stringify(url.query) : '')
       + (url.hash ? '#' + encodeURIComponent(url.hash) : '');
   }
 
@@ -396,9 +396,13 @@ remutil.lookup = function (name) {
     }
 
     // Send request.
+    // Ignore "unsafe" headers so we don't pollute console logs.
+    var UNSAFE_HEADERS = ['Host', 'User-Agent', 'Content-Length'];
     req.open(opts.method, remutil.url.format(opts.url), true);
     for (var k in opts.headers) {
-      req.setRequestHeader(k, opts.headers[k]);
+      if (UNSAFE_HEADERS.indexOf(k) == -1) {
+        req.setRequestHeader(k, opts.headers[k]);
+      }
     }
     req.send(opts.body);
   };

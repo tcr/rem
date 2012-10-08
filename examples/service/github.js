@@ -1,7 +1,7 @@
 var rem = require('../../rem');
 
 // Create Github API, prompting for key/secret.
-var gh = rem.load('github', 1.0).prompt();
+var gh = rem.load('github', 3.0).prompt();
 
 // Authenticate user via the console.
 rem.console(gh, {

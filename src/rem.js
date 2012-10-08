@@ -358,6 +358,7 @@ var API = (function () {
       console.log(clc.yellow('Initializing API keys for ' + this.manifest.id + ' on first use.'));
       if (this.manifest.control) {
         console.log(clc.yellow('Register for an API key here:'), this.manifest.control);
+        console.log(clc.yellow("(Note: Your callback URL should point to http://localhost:" + port + "/oauth/callback/)"));
       }
       return read({
         prompt: clc.yellow(this.manifest.id + ' API key: ')
@@ -412,7 +413,14 @@ rem.load = function (name, version, opts) {
   version = version || '1';
   var manifest = remutil.lookup(name);
   if (!manifest || !manifest[version]) {
-    throw new Error('Unable to find API ' + name + '::' + version);
+    if (version == '*' && manifest) {
+      var version = Object.keys(manifest).sort().pop();
+      if (!manifest[version]) {
+        throw new Error('Unable to find API ' + JSON.stringify(name) + ' version ' + JSON.stringify(Number(version)) + '. For the latest API, use "*".');
+      }
+    } else {
+      throw new Error('Unable to find API ' + JSON.stringify(name) + '.');
+    }
   }
   manifest = manifest[version];
   manifest.id = name;

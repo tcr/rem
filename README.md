@@ -9,25 +9,36 @@ To use REM with Node.js, install using `npm`:
 
     npm install rem
 
+And get started:
+
+```
+var rem = require('rem');
+var gh = rem.load('github', 3.0).prompt();
+
+rem.console(gh, {scope: ["user", "repo"]}, function (err, user) {
+  user('user').get(function (err, profile) {
+    console.log(profile);
+  });
+});
+```
+
 ## Examples
 
-[Examples are provided for each predefined API.](https://github.com/timcameronryan/rem-node/tree/master/examples) These examples can be run from the command line:
+[Examples are provided for each predefined API.](https://github.com/tcr/rem-js/tree/master/examples) These examples can be run from the command line:
 
-    coffee examples/dropbox
-
-For authentication, create a file called `examples/keys.json` with your
-API keys and secrets, of the following format:
-
-    {"tumblr": {"key": "KEY", "secret": "SECRET"}, "twitter": ...}
+    node examples/service/dropbox.js
 
 ## Usage
 
-REM includes [configurations for several popular APIs](https://github.com/timcameronryan/rem).
+REM includes [configurations for several popular APIs](https://github.com/tcr/rem-schema).
 Getting started with a particular API is as simple is specifying the name and API version:
 
 ```javascript
 var rem = require('rem')
-var tw = rem.load('twitter', 1, {key: 'YOUR_API_KEY', secret: 'YOUR_INNERMOST_API_SECRET'})
+var tw = rem.load('twitter', 1, {
+  key: 'YOUR_API_KEY',
+  secret: 'YOUR_INNERMOST_API_SECRET'
+});
 // Get started with version 1 of the Twitter API
 ```
 
@@ -61,7 +72,11 @@ tw.start(function (url, token, secret) {
 You can also define and load your own manifests for your own APIs:
 
 ```javascript
-var api = rem.create({base: 'http://cozy.api/v1', ...}, {format: 'json'})
+var yourapi = rem.create({
+  base: 'http://your.api/v1', ...
+}, {
+  format: 'json'
+});
 ```
 
 ## Reference
@@ -102,7 +117,7 @@ All route methods perform a REST call. Each takes a _callback_ parameter (which 
 
 ### `Auth` object
 
-TODO. See `examples/server-oauth1.coffee` and `examples/server-oauth2.coffee`.
+TODO. See the examples/auth folder.
 
 ## License
 

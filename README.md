@@ -12,7 +12,7 @@ To use REM with Node.js, install using `npm`:
 
 And dive right into an API example, with authentication, in just 7 lines:
 
-```
+```javascript
 var rem = require('rem');
 var gh = rem.load('github', 3.0).prompt();
 
@@ -49,7 +49,7 @@ Getting started with an API is as simple is specifying the name and its version:
 var rem = require('rem')
 var tw = rem.load('twitter', 1, {
   key: 'YOUR_API_KEY',
-  secret: 'YOUR_INNERMOST_API_SECRET'
+  secret: 'YOUR_DEEPEST_DARKEST_API_SECRET'
 });
 // Get started with version 1 of the Twitter API
 ```
@@ -79,6 +79,21 @@ tw.start(function (url, token, secret) {
         })
     })
 })
+```
+
+If you're writing a console script, all it takes is one call for any type of authentication,
+`rem.console`. Also, instead of specifying API keys and secrets, you can use `api.prompt()`
+to ask for them when you run a command. Writing command-line scripts becomes a piece of cake:
+
+```javascript
+var rem = require('rem');
+var gh = rem.load('github', 3.0).prompt();
+
+rem.console(gh, {scope: ["user", "repo"]}, function (err, user) {
+  user('user').get(function (err, profile) {
+    console.log(profile);
+  });
+});
 ```
 
 ## Reference

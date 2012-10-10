@@ -344,7 +344,7 @@ var API = (function () {
       var path = require('path');
 
       // Configuration.
-      var configFile = rem.CONFIG_FILE || path.join(require('osenv').home(), '.apikeys');
+      var configFile = rem.CONFIG_FILE || path.join(require('osenv').home(), '.remconf');
       nconf.file(configFile);
 
       // Optionally prompt for API key/secret.
@@ -418,14 +418,16 @@ rem.create = function (manifest, opts) {
 
 // TODO Be able to load manifest files locally.
 rem.load = function (name, version, opts) {
-  version = version || '1';
-  var manifest = remutil.lookup(name);
+  manifest = remutil.lookup(name);
+  version = version = '*' ? Number(version) || '*' : '*';
   if (!manifest || !manifest[version]) {
     if (version == '*' && manifest) {
       var version = Object.keys(manifest).sort().pop();
       if (!manifest[version]) {
         throw new Error('Unable to find API ' + JSON.stringify(name) + ' version ' + JSON.stringify(Number(version)) + '. For the latest API, use "*".');
       }
+    } else if (manifest) {
+      throw new Error('Unable to find API ' + JSON.stringify(name) + ' version ' + JSON.stringify(Number(version)) + '. For the latest API, use "*".');
     } else {
       throw new Error('Unable to find API ' + JSON.stringify(name) + '.');
     }

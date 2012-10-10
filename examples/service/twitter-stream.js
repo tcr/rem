@@ -1,3 +1,4 @@
+// npm install rem read clarinet
 var rem = require('rem');
 var read = require('read');
 var clarinet = require('clarinet');

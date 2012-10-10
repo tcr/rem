@@ -174,7 +174,7 @@ var API = (function () {
 
     // User agent.
     this.pre('request', function (req) {
-      req.headers['User-Agent'] = req.headers['User-Agent'] || rem.USER_AGENT;
+      req.headers['user-agent'] = req.headers['user-agent'] || rem.USER_AGENT;
     });
     // Route root pathname.
     if (this.manifest.basepath) {
@@ -216,18 +216,15 @@ var API = (function () {
 
   // Callable function.
 
-  API.prototype.call = function () {
-    var segments = Array.prototype.slice.call(arguments);
+  function invoke (api, segments, send) {
     var query = typeof segments[segments.length - 1] == 'object' ? segments.pop() : {};
     var pathname = remutil.path.join.apply(null, segments);
 
     return new Route(remutil.request.create({
       query: query, pathname: pathname
-    }), this.manifest.uploadFormat, middleware.bind(this));
+    }), api.manifest.uploadFormat, middleware);
 
     function middleware (req, next) {
-      var api = this;
-
       // Expand payload shorthand.
       api.configure(function () {
         // Determine base that matches the path name.
@@ -258,28 +255,38 @@ var API = (function () {
 
         // Apply manifest filters.
         api.middleware('request', req);
-        api.send(req, function (err, data, res) {
-          if (next) {
-            var media = new HyperMedia(api, res, data);
-            return next(media.err, media.data, media);
-          }
-        });
+        send(req, next);
       });
 
       return req;
     }
+  }
+
+  API.prototype.stream = function () {
+    return invoke(this, Array.prototype.slice.call(arguments), function (req, next) {
+      this.send(req, function (err, res) {
+        next(req, res);
+      });
+    }.bind(this));
+  };
+
+  API.prototype.call = function () {
+    return invoke(this, Array.prototype.slice.call(arguments), function (req, next) {
+      this.send(req, function (err, res) {
+        if (err) {
+          next && next(err, null, res);
+        } else {
+          remutil.consumeStream(res, function (data) {
+            var media = new HyperMedia(this, res, data);
+            next && next(media.err, media.data, media);
+          });
+        }
+      });
+    }.bind(this));
   };
 
   API.prototype.send = function (req, next) {
-    remutil.request.send(req, function (err, res) {
-      if (err) {
-        next(err, null, res);
-      } else {
-        remutil.consumeStream(res, function (data) {
-          next(err, data, res);
-        });
-      }
-    });
+    remutil.request.send(req, next);
   }
 
   // Root request shorthands.
@@ -437,7 +444,7 @@ rem.url = function () {
   url.query = query;
 
   return new Route(remutil.request.create(url), 'form', function (req, next) {
-    req.headers['User-Agent'] = req.headers['User-Agent'] || rem.USER_AGENT;
+    req.headers['user-agent'] = req.headers['user-agent'] || rem.USER_AGENT;
     remutil.request.send(req, next);
     return req;
   });

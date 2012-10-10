@@ -8,6 +8,7 @@ var express = require('express');
 var nconf = require('nconf');
 var osenv = require('osenv');
 var clc = require('cli-color');
+var querystring = require('querystring');
 
 // Namespace.
 var rem = require('./rem');
@@ -76,7 +77,15 @@ var OAuth1API = (function (_super) {
         args.push(String(req.body), req.headers['content-type']);
       }
     }
-    this.oauth[req.method.toLowerCase()].apply(this.oauth, args.concat([next]));
+
+    // TODO support close early code from https://github.com/ciaranj/node-oauth/blob/master/lib/oauth.js#L349
+    //this.oauth[req.method.toLowerCase()].apply(this.oauth, args.concat([next]));
+    var oauthreq = this.oauth[req.method.toLowerCase()].apply(this.oauth, args)
+    oauthreq.on('response', function (res) {
+      next(null, res);
+    }).on('error', function (err) {
+      next(err, null);
+    }).end();
   };
 
   OAuth1API.prototype.saveState = function (next) {
@@ -242,6 +251,9 @@ var OAuth1Authentication = (function () {
     var auth = this;
     return function (req, res, next) {
       if (req.path === pathname) {
+        if (!auth.oauth) {
+          return res.redirect('/');
+        }
         auth.complete(req.url, req.session.oauthRequestToken, req.session.oauthRequestSecret,
           function (err, user, results) {
             user.saveSession(req, function () {
@@ -285,12 +297,12 @@ var OAuth2API = (function (_super) {
   //  @_request "GET", url, {}, "", accessToken, cb
   nodeoauth.OAuth2.prototype.post = function (url, accessToken, body, mime, cb) {
     return this._request("POST", url, {
-      "Content-Type": mime
+      "content-type": mime
     }, body, accessToken, cb);
   };
   nodeoauth.OAuth2.prototype.put = function (url, accessToken, body, mime, cb) {
     return this._request("PUT", url, {
-      "Content-Type": mime
+      "content-type": mime
     }, body, accessToken, cb);
   };
   nodeoauth.OAuth2.prototype["delete"] = function (url, accessToken, body, mime, cb) {
@@ -451,9 +463,12 @@ var OAuth2Authentication = (function () {
     var pathname = remutil.url.parse(this.oauthRedirect).pathname;
     return function (req, res, next) {
       if (req.path === pathname) {
-        return _this.complete(req.url, function (err, user, results) {
-          return user.saveSession(req, function () {
-            return cb(req, res, next);
+        if (!_this.oauth) {
+          return res.redirect('/');
+        }
+        _this.complete(req.url, function (err, user, results) {
+          user.saveSession(req, function () {
+            cb(req, res, next);
           });
         });
       } else {
@@ -525,7 +540,7 @@ rem.oauthConsole = function () {
 
   // OAuth callback.
   app.use(oauth.middleware(function (req, res, next) {
-    res.send("<h1>Oauthenticated.</h1><p>Return to your console, hero!</p><p><a href='/'>Retry?</a></p>");
+    res.send("<h1>Oauthenticated.</h1><p>Return to your console, hero!</p><p><a href='/'>Restart authentication?</a></p>");
     console.log("");
     return process.nextTick(function () {
       return cb(null, req.user);

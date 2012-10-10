@@ -4,7 +4,11 @@
     "docs": "https://dev.twitter.com/docs",
     "control": "https://dev.twitter.com/apps",
 
-    "base": [["^/search", "https://search.twitter.com"], "https://api.twitter.com/1"],
+    "base": [
+      ["^/search", "https://search.twitter.com"],
+      ["^/statuses/sample", "https://stream.twitter.com/1"],
+      "https://api.twitter.com/1"
+    ],
 
     "formats": {
       "xml": {"suffix": ".xml"},

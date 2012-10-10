@@ -144,7 +144,7 @@ remutil.request = {
     });
     return remutil.modify(opts, {
       headers: remutil.modify(opts.headers, {
-        'Host': remutil.url.host(opts.url)
+        'host': remutil.url.host(opts.url)
       })
     })
   },
@@ -164,8 +164,8 @@ remutil.request = {
 
     return remutil.modify(opts, {
       headers: remutil.modify(opts.headers, {
-        'Content-Type': type,
-        'Content-Length': body.length
+        'content-type': type,
+        'content-length': body.length
       }),
       body: body
     });
@@ -397,7 +397,7 @@ remutil.lookup = function (name) {
 
     // Send request.
     // Ignore "unsafe" headers so we don't pollute console logs.
-    var UNSAFE_HEADERS = ['Host', 'User-Agent', 'Content-Length'];
+    var UNSAFE_HEADERS = ['host', 'user-agent', 'content-length'];
     req.open(opts.method, remutil.url.format(opts.url), true);
     for (var k in opts.headers) {
       if (UNSAFE_HEADERS.indexOf(k) == -1) {

@@ -344,7 +344,7 @@ var API = (function () {
       var path = require('path');
 
       // Configuration.
-      var configFile = rem.CONFIG_FILE || path.join(require('osenv').home(), '.rem.json');
+      var configFile = rem.CONFIG_FILE || path.join(require('osenv').home(), '.apikeys');
       nconf.file(configFile);
 
       // Optionally prompt for API key/secret.

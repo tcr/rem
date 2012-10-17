@@ -1,4 +1,4 @@
-var rem = require('../../rem');
+var rem = require('../..');
 
 // Create Google Calendar API, prompting for key/secret.
 var gdocs = rem.load('google-docs', 3.0, {format: 'xml'}).prompt();

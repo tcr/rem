@@ -132,7 +132,7 @@ var OAuth1Authentication = (function () {
     this.oauthRedirect = redirect || this.config.oobCallback || undefined;
 
     api.pre('configure', function () {
-      console.log(clc.yellow("(Note: Your callback URL should point to " + this.oauthRedirect + ')'));
+      console.error(clc.yellow("Your callback URL should be set to " + this.oauthRedirect + ', or some valid URL.'));
     }.bind(this));
   }
 
@@ -370,7 +370,7 @@ var OAuth2Authentication = (function () {
     this.oauthRedirect = redirect || this.config.oobCallback || undefined;
 
     api.pre('configure', function () {
-      console.log(clc.yellow("(Note: Your callback URL should point to " + this.oauthRedirect + ')'));
+      console.error(clc.yellow("Your callback URL should be set to " + this.oauthRedirect + ', or some valid URL.'));
     }.bind(this));
   }
 
@@ -503,7 +503,7 @@ rem.oauthConsoleOob = function () {
     // Out-of-band authentication.
     var oauth = rem.oauth(api);
     return oauth.start(function (url, token, secret) {
-      console.log(clc.yellow("To authenticate, visit: " + url));
+      console.error(clc.yellow("To authenticate, visit: " + url));
       if (api.manifest.auth.oobVerifier) {
         return read({
           prompt: clc.yellow("Type in the verification code: ")
@@ -514,7 +514,7 @@ rem.oauthConsoleOob = function () {
         return read({
           prompt: clc.yellow("Hit any key to continue...")
         }, function (err) {
-          console.log("");
+          console.error("");
           return oauth.complete(token, secret, cb);
         });
       }
@@ -540,8 +540,8 @@ rem.oauthConsole = function () {
 
   // OAuth callback.
   app.use(oauth.middleware(function (req, res, next) {
-    res.send("<h1>Oauthenticated.</h1><p>Return to your console, hero!</p><p><a href='/'>Restart authentication?</a></p>");
-    console.log("");
+    res.send("<h1>Oauthenticated.</h1><p>Return to your console, hero!</p><p>To restart authentication, refresh the page.</p>");
+    console.error("");
     return process.nextTick(function () {
       return cb(null, req.user);
     });
@@ -555,6 +555,6 @@ rem.oauthConsole = function () {
   // Listen on server.
   api.configure(function () {
     app.listen(port);
-    console.log(clc.yellow("To authenticate, visit: http://localhost:" + port + "/"));
+    console.error(clc.yellow("To authenticate, visit: http://localhost:" + port + "/"));
   });
 };

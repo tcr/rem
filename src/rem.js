@@ -276,9 +276,9 @@ var API = (function () {
           remutil.consumeStream(res, function (data) {
             var media = new HyperMedia(this, res, data);
             next && next(media.err, media.data, media);
-          });
+          }.bind(this));
         }
-      });
+      }.bind(this));
     }.bind(this));
   };
 

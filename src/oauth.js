@@ -324,7 +324,15 @@ var OAuth2API = (function (_super) {
     if (req.method === 'PUT' || req.method === 'POST') {
       args.push(String(req.body), req.headers['content-type']);
     }
-    this.oauth[req.method.toLowerCase()].apply(this.oauth, args.concat([next]));
+
+    // TODO node-oauth OAuth2 support doesn't let you return streams.
+    // Fix this sometime when I have the energy.
+    this.oauth[req.method.toLowerCase()].apply(this.oauth, args.concat([function (err, data) {
+      var stream = new (require('stream')).Stream();
+      next(null, stream);
+      stream.emit('data', data);
+      stream.emit('end');
+    }]));
   };
 
   OAuth2API.prototype.validate = function (cb) {

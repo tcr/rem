@@ -35,10 +35,7 @@ var HyperMedia = (function () {
     // Parse body
     try {
       if (this.type === 'xml') {
-        if (!libxmljs) {
-          var libxmljs = require('libxmljs');
-        }
-        this.data = this.xml = libxmljs.parseXmlString(String(this.data));
+        this.data = this.xml = rem.parsers.xml(String(this.data));
       } else {
         this.data = this.json = JSON.parse(String(this.data));
       }
@@ -453,6 +450,17 @@ rem.url = function () {
 };
 
 rem.consume = remutil.consumeStream;
+
+rem.parsers = {
+  xml: function (data) {
+    try {
+      var libxmljs = require('libxmljs');
+    } catch (e) {
+      throw new Error('Please install libxmljs in order to parse XML APIs.')
+    }
+    return libxmljs.parseXmlString(data);
+  }
+};
 
 if (typeof require != 'undefined') {
   // Authentication methods.

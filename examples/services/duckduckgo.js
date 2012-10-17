@@ -1,4 +1,4 @@
-var rem = require('../../rem');
+var rem = require('../..');
 var read = require('read');
 
 var ddg = rem.load('duckduckgo', 1.0);

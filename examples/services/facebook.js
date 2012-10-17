@@ -1,4 +1,4 @@
-var rem = require('../../rem');
+var rem = require('../..');
 
 // Create Dropbox API, prompting for key/secret.
 var fb = rem.load('facebook', 1.0).prompt();

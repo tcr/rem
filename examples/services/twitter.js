@@ -1,4 +1,4 @@
-var rem = require('../../src/rem');
+var rem = require('../..');
 var read = require('read');
 
 // Create Twitter API, prompting for key/secret.

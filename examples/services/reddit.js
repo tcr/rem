@@ -1,4 +1,4 @@
-var rem = require('../../rem');
+var rem = require('../..');
 var read = require('read');
 
 var reddit = rem.load('reddit', '1');

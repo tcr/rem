@@ -1,4 +1,4 @@
-var rem = require('../../rem');
+var rem = require('../..');
 
 // Create the API.
 var cee = rem.load('nonolith', 1.0);

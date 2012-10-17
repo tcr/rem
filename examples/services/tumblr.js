@@ -1,4 +1,4 @@
-var rem = require('../../rem');
+var rem = require('../..');
 var read = require('read');
 
 var tumblr = rem.load('tumblr', 2.0).prompt();

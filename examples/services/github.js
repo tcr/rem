@@ -1,4 +1,4 @@
-var rem = require('../../rem');
+var rem = require('../..');
 
 // Create Github API, prompting for key/secret.
 var gh = rem.load('github', 3.0).prompt();

@@ -12,7 +12,8 @@
     "nconf": "0.6.0",
     "osenv": "0.0.3",
     "cli-color": "~0.1.7",
-    "async": "~0.1.22"
+    "async": "~0.1.22",
+    "open": "0.0.2"
   },
   "bin": "src/cli.js",
   "main": "./src/rem.js",

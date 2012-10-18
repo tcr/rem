@@ -2,7 +2,9 @@
 
 var fs = require('fs');
 var path = require('path');
+
 var rem = require('..');
+var open = require('open');
 
 if (process.argv.length > 2) {
 	switch (process.argv[2]) {
@@ -24,8 +26,20 @@ if (process.argv.length > 2) {
 				})
 				process.exit();
 			}
+
+		case 'docs':
+			if (process.argv.length > 3) {
+				var name = process.argv[3];
+				var api = rem.load(name, '*');
+				if (api.manifest.docs) {
+					open(api.manifest.docs);
+					process.exit();
+				} else {
+					console.error('No API documentation found.');
+				}
+			}
 	}
 }
 
-console.log('Usage: rem (ls|info [name])');
+console.log('Usage: rem (ls|info [name]|docs [name])');
 process.exit(1);

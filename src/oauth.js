@@ -329,7 +329,11 @@ var OAuth2API = (function (_super) {
     // Fix this sometime when I have the energy.
     this.oauth[req.method.toLowerCase()].apply(this.oauth, args.concat([function (err, data) {
       var stream = new (require('stream')).Stream();
-      next(null, stream);
+      if (err) {
+        next(err);
+      } else {
+        next(null, stream);
+      }
       stream.emit('data', data);
       stream.emit('end');
     }]));

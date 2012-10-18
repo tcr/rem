@@ -347,8 +347,11 @@ var API = (function () {
       // Optionally prompt for API key/secret.
       var k, v, _ref, _ref1,
         _this = this;
-      if (this.key || !(this._promptConfig && this.manifest.id)) {
+      if (this.key) {
         return cont();
+      }
+      if (!(this._promptConfig && this.manifest.id)) {
+        throw new Error('No API key specified.');
       }
       if (this._persistConfig && nconf.get(this.manifest.id)) {
         _ref = nconf.get(this.manifest.id);

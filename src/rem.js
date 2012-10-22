@@ -250,6 +250,11 @@ var API = (function () {
           pathname: remutil.path.join(req.url.pathname, pathname)
         });
 
+        // Debug flag.
+        if (api.debug) {
+          console.error('[URL]', remutil.url.format(req.url));
+        }
+
         // Apply manifest filters.
         api.middleware('request', req);
         send(req, next);
@@ -464,6 +469,41 @@ rem.parsers = {
     return libxmljs.parseXmlString(data);
   }
 };
+
+function jsonpath (obj, keys) {
+  keys.split('.').filter(String).forEach(function (key) {
+    obj = obj && obj[key];
+  });
+  return obj;
+}
+
+rem.poll = function (endpoint, opts, callback) {
+  // opts is an optional argument with a 'interval', 'root', and 'date' param.
+  callback = typeof callback == 'function' ? callback : opts;
+  opts = typeof opts == 'object' ? opts : {};
+  var interval = opts.interval || 1000;
+  var ARRAY_ROOT = opts.root || '';
+  var DATE_KEY = opts.date || 'created_at';
+
+  var latest = null;
+  setInterval(function () {
+    endpoint.get(function (err, json) {
+      if (json && jsonpath(json, ARRAY_ROOT)) {
+        var root = jsonpath(json, ARRAY_ROOT);
+        for (var i = 0; i < root.length; i++) {
+          if (latest && new Date(jsonpath(root[i], DATE_KEY)) <= latest) {
+            break;
+          }
+        }
+        if (i > 0) {
+          var items = root.slice(0, i);
+          callback(null, items);
+          latest = new Date(jsonpath(items[0], DATE_KEY));
+        }
+      }
+    });
+  }, interval);
+}
 
 if (typeof require != 'undefined') {
   // Authentication methods.

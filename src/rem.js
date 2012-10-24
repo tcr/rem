@@ -448,7 +448,7 @@ rem.url = function () {
   var query = typeof segments[segments.length - 1] == 'object' ? segments.pop() : {};
   var url = remutil.url.parse(segments.shift());
   url.pathname = remutil.path.join.apply(null, [url.pathname].concat(segments));
-  url.query = query;
+  url.query = remutil.modify(url.query, query);
 
   return new Route(remutil.request.create(url), 'form', function (req, next) {
     req.headers['user-agent'] = req.headers['user-agent'] || rem.USER_AGENT;

@@ -330,7 +330,13 @@ var OAuth2API = (function (_super) {
     this.oauth[req.method.toLowerCase()].apply(this.oauth, args.concat([function (err, data) {
       var stream = new (require('stream')).Stream();
       if (err) {
-        next(err);
+        // This is bad API, node-oauth.
+        if (typeof err == 'object' && err.statusCode) {
+          next(null, stream);
+          data = err.data;
+        } else {
+          next(err);
+        }
       } else {
         next(null, stream);
       }

@@ -405,6 +405,29 @@ var API = (function () {
     
   }
 
+  // Throttling.
+
+  API.prototype.throttle = function (rate) {
+    var api = this, queue = [], rate = rate || 60;
+
+    setInterval(function () {
+      var fn = queue.shift();
+      if (fn) {
+        fn();
+      }
+    }, 1000/rate)
+
+    var oldsend = api.send;
+    api.send = function () {
+      var args = arguments;
+      queue.push(function () {
+        oldsend.apply(api, args);
+      });
+    };
+
+    return api;
+  };
+
   // Return.
 
   return API;

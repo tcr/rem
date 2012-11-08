@@ -408,7 +408,7 @@ var API = (function () {
   // Throttling.
 
   API.prototype.throttle = function (rate) {
-    var api = this, queue = [], rate = rate || 60;
+    var api = this, queue = [], rate = rate || 1;
 
     setInterval(function () {
       var fn = queue.shift();

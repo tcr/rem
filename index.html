@@ -10,15 +10,22 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
 		<style>
-		.navbar-inner .container { max-width: 960px; }
-		body > .container { max-width: 960px; }
+		.container-fluid { max-width: 970px; margin-left: auto; margin-right: auto; }
+		h2 { text-align: center; }
+		.description { font-size: 1.2em; line-height: 1.5; }
+		.instructions { margin: 15px 0; text-align: center; }
+		.instructions em { margin: 0 25px; color: #666; }
+		.instructions code { font-size: 16px; padding: 5px 15px; }
 		</style>
+
+		<link href="http://twitter.github.com/bootstrap/assets/js/google-code-prettify/prettify.css" type="text/css" rel="stylesheet" />
+		<script type="text/javascript" src="http://twitter.github.com/bootstrap/assets/js/google-code-prettify/prettify.js"></script>
 	</head>
 
-	<body>
+	<body onload="prettyPrint()">
 		<div class="navbar">
 		  <div class="navbar-inner">
-		  	<div class="container">
+		  	<div class="container-fluid">
 			    <a class="brand" href="/">REM</a>
 
 				 	<ul class="nav">
@@ -28,21 +35,62 @@
 		 	</div>
 		</div>
 
-		<div class="container">
-			<h1>REM. <span>REST easy.</span></h1>
-			<p>REM is a REST library that does away with excessive configuration, confusing authentication, and incomplete libraries. Whether using an existing API or writing your own, REM is the fewest lines of code between reading documentation and getting started. And with support for popular services built-in, you might never need another web service library.</p>
+		<div class="container-fluid">
 
-			<h2>Access any REST API. As easy as importing a module.</h2>
-			<p>REM makes it </p>
+			<div class="row">
+				<div class="span5">
+					<h1>REM. <span>REST easy.</span></h1>
 
-			<h2>Support for popular services.</h2>
-			<p>Support for facebook.com, twitter.com, dropbox.com, out of the box.</p>
+					<p class="description">REM is a REST library that does away with excessive configuration, confusing authentication, and incomplete libraries. Whether using an existing API or writing your own, REM is the fewest lines of code between reading documentation and getting started. And with support for popular services built-in, you might never need another web service library.</p>
+				</div>
 
-			<h2>Client and server side.<h2>
-			<p>Works on Node.js and in the browser.</p>
+				<div class="span5">
+					<br>
+					<pre class="prettyprint linenums languague-js">
+var rem = require('rem');
+var gh = rem('github.com');
 
-			<h2>Great for command line scripting.</h2>
-			<p><kbd>.remkeys.json</kbd></p>
+rem.console(gh, {
+  scope: ["user", "repo"]
+}, function (err, user) {
+  user('user').get(function (err, profile) {
+    console.log(profile);
+  });
+});</pre>
+				</div>
+			</div>
+
+			<div class="instructions">
+				<code class="language-js">npm install rem</code> <em>or</em>
+				<a href="https://github.com/tcr/rem-js/tree/master/lib" class="btn btn-large">Download rem.js</a> <em>or</em>
+				<a href="https://github.com/tcr/rem-js" class="btn btn-large">View on Github</a>
+			</div>
+
+			<hr>
+
+			<div class="row">
+				<div class="span5">
+					<h2>Access any REST API.</h2>
+					<p>As easy as importing a module.</p>
+				</div>
+
+				<div class="span5">
+					<h2>Support for popular services.</h2>
+					<p>Facebook, Twitter, Dropbox, and more, right out of the box. Adding your own service is as easy as JSON.</p>
+				</div>
+			</div>
+
+			<div class="row">
+				<div class="span5">
+					<h2>Client and server side.</h2>
+					<p>Works on Node.js and in the browser. JSONP and CORS supported by default.</p>
+				</div>
+
+				<div class="span5">
+					<h2>Great for command line scripting.</h2>
+					<p>Want to backup your Tweets? Move all your photos between services? Forget online services. REM makes programmaticly accessing your accounts not only simple, but shareable.</p>
+				</div>
+			</div>
 		</div>
 	</body>
 </html>

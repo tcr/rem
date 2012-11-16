@@ -1,0 +1,90 @@
+<h1 id="rem.-rest-easy.">REM. REST easy.</h1>
+<p>REM is a REST library that does away with excessive configuration, confusing authentication, and incomplete libraries. Whether using an existing API or writing your own, REM is the fewest lines of code between reading documentation and getting started. And with support for popular services built-in, you might never need another web service library.</p>
+<p>To use REM with Node.js, install using <code>npm</code>:</p>
+<pre><code>npm install rem</code></pre>
+<p>And dive right into an API example, with authentication, in just 7 lines:</p>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="kw">var</span> rem = require(<span class="ch">&#39;rem&#39;</span>);
+<span class="kw">var</span> gh = <span class="kw">rem</span>.<span class="fu">load</span>(<span class="ch">&#39;github&#39;</span>, <span class="fl">3.0</span>).<span class="fu">prompt</span>();
+
+<span class="kw">rem</span>.<span class="fu">console</span>(gh, {<span class="dt">scope</span>: [<span class="st">&quot;user&quot;</span>, <span class="st">&quot;repo&quot;</span>]}, <span class="kw">function</span> (err, user) {
+  user(<span class="ch">&#39;user&#39;</span>).<span class="fu">get</span>(<span class="kw">function</span> (err, profile) {
+    <span class="kw">console</span>.<span class="fu">log</span>(profile);
+  });
+});</code></pre>
+<h2 id="examples">Examples</h2>
+<p>REM has examples for authentication and for <a href="https://github.com/tcr/rem-js/tree/master/examples">each builtin API service.</a> These examples can be run from the command line:</p>
+<pre><code>node examples/services/dropbox.js</code></pre>
+<h2 id="usage">Usage</h2>
+<p>REM lets you define an API according to <a href="https://github.com/tcr/rem-schema">a JSON schema</a>:</p>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="kw">var</span> yourapi = <span class="kw">rem</span>.<span class="fu">create</span>({
+  <span class="dt">base</span>: <span class="ch">&#39;http://your.api/v1&#39;</span>,
+  ...
+}, {
+  <span class="dt">format</span>: <span class="ch">&#39;json&#39;</span>
+});</code></pre>
+<p>REM also includes <a href="https://github.com/tcr/rem-schema/builtin">configurations for builtin APIs</a>. Getting started with an API is as simple is specifying the name and its version:</p>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="kw">var</span> rem = require(<span class="ch">&#39;rem&#39;</span>)
+<span class="kw">var</span> tw = <span class="kw">rem</span>.<span class="fu">load</span>(<span class="ch">&#39;twitter&#39;</span>, <span class="fl">1.1</span>, {
+  <span class="dt">key</span>: <span class="ch">&#39;YOUR_API_KEY&#39;</span>,
+  <span class="dt">secret</span>: <span class="ch">&#39;YOUR_DEEPEST_DARKEST_API_SECRET&#39;</span>
+});
+<span class="co">// Get started with version 1.1 of the Twitter API</span></code></pre>
+<p>You can make API requests simply:</p>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">tw(<span class="ch">&#39;search&#39;</span>).<span class="fu">get</span>({<span class="dt">q</span>: <span class="ch">&#39;fleetwood mac&#39;</span>, <span class="dt">rpp</span>: <span class="dv">5</span>}, <span class="kw">function</span>(err, json) {
+    <span class="kw">console</span>.<span class="fu">log</span>(<span class="ch">&#39;There are&#39;</span>, <span class="kw">json.results</span>.<span class="fu">length</span>, <span class="ch">&#39;results for Fleetwood Mac. #awesome&#39;</span>);
+});</code></pre>
+<p>OAuth authentication parameters are already included. You can authenticate by using callbacks, connect middleware, or out-of-band modes when available:</p>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="kw">var</span> read = require(<span class="ch">&#39;read&#39;</span>);
+<span class="kw">var</span> oauth = <span class="kw">rem</span>.<span class="fu">oauth</span>(tw);
+<span class="kw">tw</span>.<span class="fu">start</span>(<span class="kw">function</span> (url, token, secret) {
+    <span class="kw">console</span>.<span class="fu">log</span>(<span class="st">&quot;Visit:&quot;</span>, url);
+    read({<span class="dt">prompt</span>: <span class="st">&quot;Verification code: &quot;</span>}, <span class="kw">function</span> (err, verifier) {
+        <span class="kw">oauth</span>.<span class="fu">complete</span>(verifier, token, secret, <span class="kw">function</span> (err, user) {
+            <span class="co">// Authenticated calls with the Twitter API can now be made:</span>
+            user(<span class="ch">&#39;statuses/update&#39;</span>).<span class="fu">post</span>({<span class="dt">status</span>: message}, <span class="kw">function</span> (err, json) {
+                <span class="kw">console</span>.<span class="fu">log</span>(<span class="ch">&#39;Posted a comment:&#39;</span>, err, json);
+            })
+        })
+    })
+})</code></pre>
+<p>If you're writing a console script, all it takes is one call for any type of authentication, <code>rem.console</code>. Also, instead of specifying API keys and secrets, you can use <code>api.prompt()</code> to ask for them when you run a command. Writing command-line scripts becomes a piece of cake:</p>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="kw">var</span> rem = require(<span class="ch">&#39;rem&#39;</span>);
+<span class="kw">var</span> gh = <span class="kw">rem</span>.<span class="fu">load</span>(<span class="ch">&#39;github&#39;</span>, <span class="fl">3.0</span>).<span class="fu">prompt</span>();
+
+<span class="kw">rem</span>.<span class="fu">console</span>(gh, {<span class="dt">scope</span>: [<span class="st">&quot;user&quot;</span>, <span class="st">&quot;repo&quot;</span>]}, <span class="kw">function</span> (err, user) {
+  user(<span class="ch">&#39;user&#39;</span>).<span class="fu">get</span>(<span class="kw">function</span> (err, profile) {
+    <span class="kw">console</span>.<span class="fu">log</span>(profile);
+  });
+});</code></pre>
+<h2 id="reference">Reference</h2>
+<h3 id="rem-module"><code>rem</code> module</h3>
+<ul>
+<li><h4>rem.load(<em>id</em>, <em>version</em>, <em>options</em>) returns <code>Api</code></h4>
+<pre><code> Load a predefined manifest. The [available list exists in the `rem` repo](https://github.com/timcameronryan/rem). A version parameter is required for each API. The `options` object is a map of values that configure the API, most commonly `key` and `secret`. You can also specify a `format` parameter with the value `&quot;xml&quot;` or `&quot;json&quot;`, which determines what format to use for REST calls. When a format is not specified, `&quot;json&quot;` is assumed.</code></pre></li>
+<li><h4>rem.create(<em>manifest</em>, <em>options</em>) returns <code>Api</code></h4>
+<pre><code> Create a REM `Api` object using the JSON manifest you supply. The [format of manifests](https://github.com/timcameronryan/rem) is defined in the `rem` repo.</code></pre></li>
+</ul>
+<h3 id="api-object"><code>Api</code> object</h3>
+<p>The <code>Api</code> object is callable:</p>
+<ul>
+<li><h4>api(<em>path</em>[, <em>params</em>]) returns <code>Route</code></h4>
+<pre><code> Returns a route object for the given path, and if specified, query parameters. These parameters can be augmented by method calls, for instance `api(&#39;/some/path&#39;, {&quot;key1&quot;: &quot;A&quot;}).get({&quot;key2&quot;: &quot;B&quot;}, function () { ... })` uses both `key1` and `key2`.</code></pre></li>
+</ul>
+<h3 id="route-object"><code>Route</code> object</h3>
+<p>All route methods perform a REST call. Each takes a <em>callback</em> parameter (which can be omitted, for instance to just return the ClientRequest object). The callback receives an <code>err</code> argument, a <code>data</code> object (which will be a JSON object or a <code>libxmljs</code> document), and a <code>RESTCall</code> object with additional methods and properties.</p>
+<ul>
+<li><h4>route.get([<em>params</em>, ]<em>callback(err, data, call)</em>) returns <code>ClientRequest</code></h4>
+<pre><code> Performs a GET request on the given route. Additional query parameters can be specified.</code></pre></li>
+<li><h4>route.post([<em>mime</em>, ]<em>data</em>, <em>callback(err, data, call)</em>) returns <code>ClientRequest</code></h4>
+<pre><code> Performs a POST request on the given route with the `data` argument, which can be a string, buffer, or object. The `mime` argument can be a MIME type or one of `form` or `json`. If the `mime` argument is omitted, the value is either  `uploadFormat` as defined in the manifest, or `form` by default. If an object is passed as the `data` argument, it will be serialized as either form data or JSON, depending on the MIME type.</code></pre></li>
+<li><h4>route.post([<em>mime</em>, ]<em>data</em>, <em>callback(err, data, call)</em>) returns <code>ClientRequest</code></h4>
+<pre><code> Performs a PUT request on the given route. See `route.post()`</code></pre></li>
+<li><h4>route.head(<em>callback(err, data, call)</em>) returns <code>ClientRequest</code></h4>
+<pre><code> Performs a HEAD request on the given route. The `data` argument in the callback will be empty. (The `ClientResponse` is saved in the `call.res` parameter.)</code></pre></li>
+<li><h4>route.del([<em>mime</em>, ]<em>data</em>, <em>callback(err, data, call)</em>) returns <code>ClientRequest</code></h4>
+<pre><code> Performs a DELETE request on the given route.</code></pre></li>
+</ul>
+<h3 id="auth-object"><code>Auth</code> object</h3>
+<p>TODO. See the examples/auth folder.</p>
+<h2 id="license">License</h2>
+<p>MIT.</p>

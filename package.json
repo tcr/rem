@@ -1,7 +1,7 @@
 {
   "name": "rem",
   "description": "REST made easy. Extensible, and includes support for many popular APIs.",
-  "version": "0.5.10",
+  "version": "0.5.11",
   "author": "Tim Cameron Ryan <tim@timryan.org>",
   "contributors": [],
   "dependencies": {

@@ -164,8 +164,8 @@ remutil.request = {
 
     return remutil.modify(opts, {
       headers: remutil.modify(opts.headers, {
-        'content-type': type,
-        'content-length': body.length
+        'content-length': body.length,
+        'content-type': type
       }),
       body: body
     });
@@ -257,10 +257,21 @@ remutil.lookup = function (name) {
   var https = require('https');
   var querystring = require('querystring');
 
+  // Some servers actually have an issue with this.
+  function camelCaseHeaders (lower) {
+    var camel = {};
+    for (var key in lower) {
+      camel[key.replace(/(?:^|\b)\w/g, function (match) {
+        return match.toUpperCase();
+      })] = lower[key];
+    }
+    return camel;
+  }
+
   remutil.request.send = function (opts, next) {
     var req = (opts.url.protocol == 'https:' ? https : http).request({
       method: opts.method,
-      headers: opts.headers,
+      headers: camelCaseHeaders(opts.headers),
       protocol: opts.url.protocol,
       hostname: opts.url.hostname,
       port: opts.url.port,
@@ -399,9 +410,10 @@ remutil.lookup = function (name) {
     // Ignore "unsafe" headers so we don't pollute console logs.
     var UNSAFE_HEADERS = ['host', 'user-agent', 'content-length'];
     req.open(opts.method, remutil.url.format(opts.url), true);
-    for (var k in opts.headers) {
+    var headers = camelCaseHeaders(opts.headers);
+    for (var k in headers) {
       if (UNSAFE_HEADERS.indexOf(k) == -1) {
-        req.setRequestHeader(k, opts.headers[k]);
+        req.setRequestHeader(k, headers[k]);
       }
     }
     req.send(opts.body);

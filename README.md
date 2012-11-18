@@ -47,11 +47,11 @@ Getting started with an API is as simple is specifying the name and its version:
 
 ```javascript
 var rem = require('rem')
-var tw = rem.load('twitter', 1, {
+var tw = rem.load('twitter', 1.1, {
   key: 'YOUR_API_KEY',
   secret: 'YOUR_DEEPEST_DARKEST_API_SECRET'
 });
-// Get started with version 1 of the Twitter API
+// Get started with version 1.1 of the Twitter API
 ```
 
 You can make API requests simply:

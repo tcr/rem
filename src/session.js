@@ -24,8 +24,9 @@ var CookieSessionAPI = (function () {
   function CookieSessionAPI (manifest, opts) {
     API.apply(this, arguments);
 
-    this.pre('request', function (req) {
-      req.headers['Cookie'] = this.opts.cookies;
+    this.pre('request', function (req, next) {
+      req.headers['cookie'] = this.opts.cookies;
+      next();
     })
   }
 

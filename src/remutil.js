@@ -270,7 +270,7 @@ remutil.lookup = function (name) {
     // Response.
     req.on('response', function (res) {
       // Attempt to follow Location: headers.
-      if (((res.statusCode / 100) | 0) == 3 && res.headers['location']) {
+      if (((res.statusCode / 100) | 0) == 3 && res.headers['location'] && (opts.redirect === null || opts.redirect)) {
         remutil.request.send(remutil.request.url(opts, res.headers['location']), next);
       } else {
         next && next(null, res);

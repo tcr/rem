@@ -131,8 +131,9 @@ var OAuth1Authentication = (function () {
     }
     this.oauthRedirect = redirect || this.config.oobCallback || undefined;
 
-    api.pre('configure', function () {
+    api.pre('configure', function (next) {
       console.error(clc.yellow("Your callback URL should be set to " + this.oauthRedirect + ', or some valid URL.'));
+      next();
     }.bind(this));
   }
 
@@ -387,8 +388,9 @@ var OAuth2Authentication = (function () {
     }
     this.oauthRedirect = redirect || this.config.oobCallback || undefined;
 
-    api.pre('configure', function () {
+    api.pre('configure', function (next) {
       console.error(clc.yellow("Your callback URL should be set to " + this.oauthRedirect + ', or some valid URL.'));
+      next();
     }.bind(this));
   }
 

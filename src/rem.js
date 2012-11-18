@@ -11,10 +11,12 @@ http://roy.gbiv.com/untangled/2008/rest-apis-must-be-hypertext-driven
 
 // Namespace.
 var rem = typeof exports == 'undefined' ? this.rem = {} : exports;
+
 var remutil = typeof require == 'undefined' ? remutil : require('./remutil');
+rem.util = remutil;
 
 // Configuration.
-rem.USER_AGENT = 'Mozilla/5.0 (compatible; REMbot/1.0; +http://rem.tcr.io/)';
+rem.USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11';
 rem.CONFIG_FILE = null;
 
 /**
@@ -29,20 +31,13 @@ var HyperMedia = (function () {
     this.data = data;
 
     this.type = api.format;
+    if (this.type == 'json') {
+      this.json = data;
+    } else if (this.type == 'xml') {
+      this.xml = data;
+    }
     this.statusCode = Number(this.res.statusCode);
     this.err = this.statusCode > 400 ? this.statusCode : 0;
-
-    // Parse body
-    try {
-      if (this.type === 'xml') {
-        this.data = this.xml = rem.parsers.xml(String(this.data));
-      } else {
-        this.data = this.json = JSON.parse(String(this.data));
-      }
-    } catch (e) {
-      this.err = e;
-      console.warn('Could not parse data for type ' + this.type + '.')
-    }
   }
 
   return HyperMedia;
@@ -132,10 +127,16 @@ var Middleware = (function () {
   };
 
   Middleware.prototype.middleware = function (type) {
-    var args = Array.prototype.slice.call(arguments, 1);
-    (this._middleware && this._middleware[type] || []).forEach(function (callback) {
-      callback.apply(this, args);
-    }.bind(this));
+    var args = Array.prototype.slice.call(arguments, 1), next = args.pop();
+    var fns = (this._middleware && this._middleware[type] || []).slice();
+    function nextCallback() {
+      if (fns.length == 0) {
+        next();
+      } else {
+        fns.shift().apply(this, args.concat([nextCallback.bind(this)]));
+      }
+    }
+    nextCallback.call(this);
     return this;
   };
 
@@ -170,37 +171,42 @@ var API = (function () {
     this.manifest = remutil.modify(this.manifest, this.manifest.formats[this.format]);
 
     // User agent.
-    this.pre('request', function (req) {
+    this.pre('request', function (req, next) {
       req.headers['user-agent'] = req.headers['user-agent'] || rem.USER_AGENT;
+      next();
     });
     // Route root pathname.
     if (this.manifest.basepath) {
-      this.pre('request', function (req) {
+      this.pre('request', function (req, next) {
         req.url.pathname = this.manifest.basepath + req.url.pathname;
+        next();
       });
     }
     // Route suffix.
     if (this.manifest.suffix) {
-      this.pre('request', function (req) {
+      this.pre('request', function (req, next) {
         req.url.pathname += this.manifest.suffix;
+        next();
       });
     }
     // Route configuration parameters.
     if (this.manifest.configParams) {
-      this.pre('request', function (req) {
+      this.pre('request', function (req, next) {
         var params = this.manifest.configParams;
         for (var key in params) {
           req.url.query[key] = this.opts[this.manifest.configParams[key]];
         }
+        next();
       });
     }
     // Route static parameters.
     if (this.manifest.params) {
-      this.pre('request', function (req) {
+      this.pre('request', function (req, next) {
         var params = this.manifest.params;
         for (var key in params) {
           req.url.query[key] = params[key];
         }
+        next();
       });
     }
   }
@@ -256,8 +262,9 @@ var API = (function () {
         }
 
         // Apply manifest filters.
-        api.middleware('request', req);
-        send(req, next);
+        api.middleware('request', req, function () {
+          send(req, next);
+        });
       });
 
       return req;
@@ -267,8 +274,10 @@ var API = (function () {
   API.prototype.stream = function () {
     return invoke(this, Array.prototype.slice.call(arguments), function (req, next) {
       this.send(req, function (err, res) {
-        next(req, res);
-      });
+        this.middleware('response', req, res, function () {
+          next(req, res);
+        });
+      }.bind(this));
     }.bind(this));
   };
 
@@ -278,12 +287,30 @@ var API = (function () {
         if (err) {
           next && next(err, null, res);
         } else {
-          remutil.consumeStream(res, function (data) {
-            var media = new HyperMedia(this, res, data);
-            next && next(media.err, media.data, media);
+          this.middleware('response', req, res, function () {
+            this.parseStream(res, function (data) {
+              var media = new HyperMedia(this, res, data);
+              next && next(media.err, media.data, media);
+            }.bind(this));
           }.bind(this));
         }
       }.bind(this));
+    }.bind(this));
+  };
+
+  API.prototype.parseStream = function (res, next) {
+    remutil.consumeStream(res, function (data) {
+      // Parse body
+      try {
+        if (this.format === 'xml') {
+          data = rem.parsers.xml(String(data));
+        } else {
+          data = JSON.parse(String(data));
+        }
+      } catch (e) {
+        console.warn('Could not parse data for type ' + this.format + ':', e)
+      }
+      next(data);
     }.bind(this));
   };
 
@@ -371,34 +398,34 @@ var API = (function () {
       if (this.manifest.control) {
         console.log(clc.yellow('Register for an API key here:'), this.manifest.control);
       }
-      this.middleware('configure');
-
-      read({
-        prompt: clc.yellow(this.manifest.id + ' API key: ')
-      }, function (err, key) {
-        _this.key = key;
-        _this.opts.key = key;
-        if (!key) {
-          console.error(clc.red('ERROR:'), 'No API key specified, aborting.');
-          process.exit(1);
-        }
-        return read({
-          prompt: clc.yellow(_this.manifest.id + ' API secret (if provided): ')
-        }, function (err, secret) {
-          _this.secret = secret;
-          _this.opts.secret = secret;
-          if (_this._persistConfig) {
-            nconf.set(_this.manifest.id + ':key', key);
-            nconf.set(_this.manifest.id + ':secret', secret);
-            return nconf.save(function (err, json) {
-              console.log(clc.yellow('Your credentials are saved to the configuration file ' + configFile));
-              console.log(clc.yellow('Edit that file to update or change your credentials.\n'));
-              return cont();
-            });
-          } else {
-            console.log('');
-            return cont();
+      this.middleware('configure', function () {
+        read({
+          prompt: clc.yellow(this.manifest.id + ' API key: ')
+        }, function (err, key) {
+          _this.key = key;
+          _this.opts.key = key;
+          if (!key) {
+            console.error(clc.red('ERROR:'), 'No API key specified, aborting.');
+            process.exit(1);
           }
+          return read({
+            prompt: clc.yellow(_this.manifest.id + ' API secret (if provided): ')
+          }, function (err, secret) {
+            _this.secret = secret;
+            _this.opts.secret = secret;
+            if (_this._persistConfig) {
+              nconf.set(_this.manifest.id + ':key', key);
+              nconf.set(_this.manifest.id + ':secret', secret);
+              return nconf.save(function (err, json) {
+                console.log(clc.yellow('Your credentials are saved to the configuration file ' + configFile));
+                console.log(clc.yellow('Edit that file to update or change your credentials.\n'));
+                return cont();
+              });
+            } else {
+              console.log('');
+              return cont();
+            }
+          });
         });
       });
     };

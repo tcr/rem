@@ -288,7 +288,7 @@ var API = (function () {
           next && next(err, null, res);
         } else {
           this.middleware('response', req, res, function () {
-            this.parseStream(res, function (data) {
+            this.parseStream(req, res, function (data) {
               var media = new HyperMedia(this, res, data);
               next && next(media.err, media.data, media);
             }.bind(this));
@@ -298,7 +298,7 @@ var API = (function () {
     }.bind(this));
   };
 
-  API.prototype.parseStream = function (res, next) {
+  API.prototype.parseStream = function (req, res, next) {
     remutil.consumeStream(res, function (data) {
       // Parse body
       try {

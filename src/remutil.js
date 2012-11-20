@@ -284,6 +284,7 @@ remutil.lookup = function (name) {
       if (((res.statusCode / 100) | 0) == 3 && res.headers['location'] && (opts.redirect === null || opts.redirect)) {
         remutil.request.send(remutil.request.url(opts, res.headers['location']), next);
       } else {
+        res.url = remutil.url.format(opts.url); // Populate res.url property
         next && next(null, res);
       }
     });

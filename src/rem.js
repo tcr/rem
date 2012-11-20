@@ -305,6 +305,10 @@ var API = (function () {
         if (this.format === 'xml') {
           data = rem.parsers.xml(String(data));
         } else {
+          // Remove the BOM when it's been included.
+          if (data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf) {
+            data = data.slice(3);
+          }
           data = JSON.parse(String(data));
         }
       } catch (e) {

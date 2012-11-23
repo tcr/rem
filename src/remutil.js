@@ -268,9 +268,15 @@ remutil.lookup = function (name) {
     return camel;
   }
 
-  remutil.request.send = function (opts, next) {
+  remutil.request.send = function (opts, agent, next) {
+    // Accept HTTP agent. Node.js only.
+    if (next == null) {
+      next = agent;
+      agent = null;
+    }
+
     var req = (opts.url.protocol == 'https:' ? https : http).request({
-      agent: opts.agent || undefined,
+      agent: agent || undefined,
       method: opts.method,
       headers: camelCaseHeaders(opts.headers),
       protocol: opts.url.protocol,
@@ -282,8 +288,8 @@ remutil.lookup = function (name) {
     // Response.
     req.on('response', function (res) {
       // Attempt to follow Location: headers.
-      if (((res.statusCode / 100) | 0) == 3 && res.headers['location'] && (opts.redirect === null || opts.redirect)) {
-        remutil.request.send(remutil.request.url(opts, res.headers['location']), next);
+      if (((res.statusCode / 100) | 0) == 3 && res.headers['location'] && opts.redirect !== false) {
+        remutil.request.send(remutil.request.url(opts, res.headers['location']), agent, next);
       } else {
         res.url = remutil.url.format(opts.url); // Populate res.url property
         next && next(null, res);

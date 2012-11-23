@@ -4,3 +4,4 @@
 
 * Support for passing in HTTP agents
 * Shorthand for rem.create({base: "http://base"}) as rem.create("http://base")
+* FIX: Redirects weren't being followed by default.

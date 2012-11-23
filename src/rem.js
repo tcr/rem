@@ -257,11 +257,6 @@ var API = (function () {
           pathname: remutil.path.join(req.url.pathname, pathname)
         });
 
-        // HTTP agents. Node-only.
-        if (api.agent) {
-          req.agent = api.agent;
-        }
-
         // Debug flag.
         if (api.debug) {
           console.error('[URL]', remutil.url.format(req.url));
@@ -325,7 +320,7 @@ var API = (function () {
   };
 
   API.prototype.send = function (req, next) {
-    remutil.request.send(req, next);
+    remutil.request.send(req, this.agent, next);
   }
 
   // Root request shorthands.
@@ -515,6 +510,7 @@ rem.url = function () {
 
   return new Route(remutil.request.create(url), 'form', function (req, next) {
     req.headers['user-agent'] = req.headers['user-agent'] || rem.USER_AGENT;
+    // TODO rem.globalAgent
     remutil.request.send(req, next);
     return req;
   });

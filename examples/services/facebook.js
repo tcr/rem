@@ -15,7 +15,7 @@ rem.console(fb, {
 
     // Get your latest image.
     user('me/photos').get(function(err, json) {
-      rem.url(json.data[0].source).head(function(err, _, res) {
+      rem.url(json.data[0].source).head(function(err, res) {
         console.log('Your latest image: (error', err, ')');
         console.log(res.headers);
       });

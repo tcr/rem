@@ -478,6 +478,9 @@ var API = (function () {
 rem.API = API;
 
 rem.create = function (manifest, opts) {
+  if (typeof manifest == 'string') {
+    manifest = { base: manifest };
+  }
   return remutil.callable(new API(manifest, opts));
 };
 

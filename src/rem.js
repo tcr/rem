@@ -160,6 +160,7 @@ var API = (function () {
     this.key = this.opts.key;
     this.secret = this.opts.secret;
     this.format = this.opts.format || 'json';
+    this.agent = this.opts.agent; // HTTP agents. Node-only.
 
     // Load format-specific options from the manifest.
     if (!this.manifest.formats) {
@@ -255,6 +256,11 @@ var API = (function () {
         req = remutil.request.url(req, {
           pathname: remutil.path.join(req.url.pathname, pathname)
         });
+
+        // HTTP agents. Node-only.
+        if (api.agent) {
+          req.agent = api.agent;
+        }
 
         // Debug flag.
         if (api.debug) {

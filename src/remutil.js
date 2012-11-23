@@ -270,6 +270,7 @@ remutil.lookup = function (name) {
 
   remutil.request.send = function (opts, next) {
     var req = (opts.url.protocol == 'https:' ? https : http).request({
+      agent: opts.agent || undefined,
       method: opts.method,
       headers: camelCaseHeaders(opts.headers),
       protocol: opts.url.protocol,

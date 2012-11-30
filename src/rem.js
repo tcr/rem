@@ -300,23 +300,7 @@ var API = (function () {
   };
 
   API.prototype.parseStream = function (req, res, next) {
-    remutil.consumeStream(res, function (data) {
-      // Parse body
-      try {
-        if (this.format === 'xml') {
-          data = rem.parsers.xml(String(data));
-        } else {
-          // Remove the BOM when it's been included.
-          if (data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf) {
-            data = data.slice(3);
-          }
-          data = JSON.parse(String(data));
-        }
-      } catch (e) {
-        console.warn('Could not parse data for type ' + this.format + ':', e)
-      }
-      next(data);
-    }.bind(this));
+    rem.parsers[this.format](req, res, next);
   };
 
   API.prototype.send = function (req, next) {
@@ -519,13 +503,36 @@ rem.url = function () {
 rem.consume = remutil.consumeStream;
 
 rem.parsers = {
-  xml: function (data) {
-    try {
-      var libxmljs = require('libxmljs');
-    } catch (e) {
-      throw new Error('Please install libxmljs in order to parse XML APIs.')
-    }
-    return libxmljs.parseXmlString(data);
+  xml: function (req, res, next) {
+    remutil.consumeStream(res, function (data) {
+      try {
+        var libxmljs = require('libxmljs');
+      } catch (e) {
+        throw new Error('Please install libxmljs in order to parse XML APIs.')
+      }
+      try {
+        data = libxmljs.parseXmlString(data);
+      } catch (e) {
+        console.error('Could not parse XML.', e)
+      }
+      next(data);
+    });
+  },
+
+  json: function (stream) {
+    remutil.consumeStream(res, function (data) {
+      // Parse body
+      try {
+        // Remove BOM signatures.
+        if (data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf) {
+          data = data.slice(3);
+        }
+        data = JSON.parse(String(data));
+      } catch (e) {
+        console.error('Could not parse JSON.', e)
+      }
+      next(data);
+    });
   }
 };
 

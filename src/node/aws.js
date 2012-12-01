@@ -10,12 +10,13 @@ var osenv = require('osenv');
 var clc = require('cli-color');
 
 // Namespace.
-var rem = require('./rem');
-var remutil = require('./remutil');
+var rem = require('../rem');
+var remutil = require('../remutil');
 
 /**
  * AWS signature.
  */
+
 
 var AWSSignatureAPI = (function (_super) {
 

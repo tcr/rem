@@ -1,120 +1,45 @@
 /*
 
-REM: Remedial Rest Interfaces
-
-A library that simplifies and normalizes access to REST APIs.
+Rem: REST easy.
+A flexible HTTP library for using the web like an API.
 
 Reference:
 http://roy.gbiv.com/untangled/2008/rest-apis-must-be-hypertext-driven
 
 */
 
-// Namespace.
-var rem = typeof exports == 'undefined' ? this.rem = {} : exports;
-
-var remutil = typeof require == 'undefined' ? remutil : require('./remutil');
-rem.util = remutil;
-
-// Configuration.
-rem.USER_AGENT = 'Mozilla/5.0 (compatible; REMbot/1.0; +http://remlib.org/)';
-rem.CONFIG_FILE = null;
-
 /**
- * A hypermedia resource.
+ * Utilities
  */
 
-var HyperMedia = (function () {
+function callable (obj) {
+  var f = function () {
+    return f.call.apply(f, arguments);
+  };
+  f.__proto__ = obj;
+  return f;
+};
 
-  function HyperMedia (api, res, data) {
-    this.api = api;
-    this.res = res;
-    this.data = data;
+function clone (obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
 
-    this.type = api.format;
-    if (this.type == 'json') {
-      this.json = data;
-    } else if (this.type == 'xml') {
-      this.xml = data;
+function modify (a, b) {
+  var c = remutil.clone(a);
+  for (var k in a) {
+    if (Object.prototype.hasOwnProperty.call(a, k)) {
+      c[k] = a[k];
     }
-    this.statusCode = Number(this.res.statusCode);
-    this.err = this.statusCode > 400 ? this.statusCode : 0;
   }
-
-  return HyperMedia;
-
-})();
-
-/**
- * A route endpoint.
- */
-
-var Route = (function () {
-
-  function Route (req, defaultBodyMime, middleware) {
-    this.req = req;
-    this.defaultBodyMime = defaultBodyMime || 'json';
-    this.middleware = middleware;
+  for (var k in b) {
+    if (Object.prototype.hasOwnProperty.call(b, k)) {
+      c[k] = b[k];
+    }
   }
+  return c;
+}
 
-  Route.prototype.get = function (query, next) {
-    if (typeof query == 'function') {
-      next = query;
-      query = null;
-    }
-    return this.middleware(remutil.modify(remutil.request.url(this.req, {
-      query: query || {}
-    }), {
-      method: 'GET'
-    }), next);
-  };
-
-  Route.prototype.head = function (query, next) {
-    if (typeof query == 'function') {
-      next = query;
-      query = null;
-    }
-    return this.middleware(remutil.modify(remutil.request.url(this.req, {
-      query: query || {}
-    }), {
-      method: 'HEAD'
-    }), next);
-  };
-
-  Route.prototype.post = function (mime, body, next) {
-    if (typeof body == 'function') {
-      next = body;
-      body = mime;
-      mime = this.defaultBodyMime;
-    }
-    return this.middleware(remutil.modify(remutil.request.body(this.req, mime, body), {
-      method: 'POST'
-    }), next);
-  };
-
-  Route.prototype.put = function (mime, body, next) {
-    if (typeof body == 'function') {
-      next = body;
-      body = mime;
-      mime = this.defaultBodyMime;
-    }
-    return this.middleware(remutil.modify(remutil.request.body(this.req, mime, body), {
-      method: 'PUT'
-    }), next);
-  };
-
-  Route.prototype.del = function (next) {
-    return this.middleware(remutil.modify(this.req, {
-      method: 'DELETE'
-    }), next);
-  };
-
-  return Route;
-
-})();
-
-/**
- * Middleware.
- */
+var envtype = (typeof module !== 'undefined' && module.exports) ? 'node' : 'browser';
 
 var Middleware = (function () {
 
@@ -144,6 +69,234 @@ var Middleware = (function () {
 
 })();
 
+
+/**
+ * Module
+ */
+
+var rem = (envtype == 'node') ? exports ? this.rem = {};
+rem.userAgent = 'Mozilla/5.0 (compatible; REMbot/1.0; +http://remlib.org/)';
+rem.configFile = null;
+
+/** 
+ * URL functions
+ */
+
+// protocol://auth@hostname:port/pathname?query#hash
+
+remutil.url = {
+
+  parse: null,
+
+  format: null,
+
+  host: function (url) {
+    return url.hostname && (url.hostname + (url.port ? ':' + url.port : ''));
+  },
+
+  path: function (url) {
+    return url.pathname
+      + (remutil.qs.stringify(url.query) ? '?' + remutil.qs.stringify(url.query) : '')
+      + (url.hash ? '#' + encodeURIComponent(url.hash) : '');
+  }
+
+};
+
+/**
+ * Request functions
+ */
+
+remutil.request = {
+
+  create: function (mod) {
+    return remutil.request.url({
+      method: 'GET',
+      headers: {},
+      url: null,
+      body: null
+    }, mod);
+  },
+
+  url: function (opts, mod) {
+    if (typeof mod == 'string') {
+      mod = remutil.url.parse(mod);
+    }
+    mod.query = remutil.modify(opts.url ? opts.url.query : {}, mod.query);
+    opts = remutil.modify(opts, {
+      url: opts.url ? remutil.modify(opts.url, mod) : mod
+    });
+    return remutil.modify(opts, {
+      headers: remutil.modify(opts.headers, {
+        'host': remutil.url.host(opts.url)
+      })
+    })
+  },
+
+  body: function (opts, type, body) {
+    // Expand payload shorthand.
+    if (typeof body == 'object') {
+      if (type == 'form' || type == 'application/x-www-form-urlencoded') {
+        type = 'application/x-www-form-urlencoded';
+        body = remutil.qs.stringify(body);
+      }
+      if (type == 'json' || type == 'application/json') {
+        type = 'application/json';
+        body = remutil.safeJSONStringify(body);
+      }
+    }
+
+    return remutil.modify(opts, {
+      headers: remutil.modify(opts.headers, {
+        'content-length': body.length,
+        'content-type': type
+      }),
+      body: body
+    });
+  },
+
+  send: null
+
+};
+
+
+/**
+ * Local calling.
+ */
+
+/*
+rem.url = function () {
+  var segments = Array.prototype.slice.call(arguments);
+  var query = typeof segments[segments.length - 1] == 'object' ? segments.pop() : {};
+  var url = remutil.url.parse(segments.shift());
+  url.pathname = remutil.path.join.apply(null, [url.pathname].concat(segments));
+  url.query = remutil.modify(url.query, query);
+
+  return new Route(remutil.request.create(url), 'form', function (req, next) {
+    req.headers['user-agent'] = req.headers['user-agent'] || rem.userAgent;
+    // TODO rem.globalAgent
+    remutil.request.send(req, next);
+    return req;
+  });
+};
+*/
+
+rem.serializer = {
+  json: function (data) {
+    return JSON.stringify(data).replace(/[\u007f-\uffff]/g, function (c) {
+      return "\\u" + ("0000" + c.charCodeAt(0).toString(16)).slice(-4);
+    });
+  }
+};
+
+rem.parsers = {
+  stream: function (res, next) {
+    next(res);
+  },
+
+  binary: function (res, next) {
+    remutil.consumeStream(res, next);
+  },
+
+  text: function (res, next) {
+    remutil.consumeStream(res, function (data) {
+      // Strip BOM signatures.
+      next(String(data).replace(/^\uFEFF/, ''));
+    });
+  },
+
+  json: function (res, next) {
+    rem.parsers.text(req, res, function (data) {
+      try {
+        data = JSON.parse(String(data));
+      } catch (e) {
+        console.error('Could not parse JSON.', e)
+      }
+      next(data);
+    });
+  }
+
+  xml: function (res, next) {
+    rem.parsers.text(req, res, function (data) {
+      try {
+        remutil.parseXML(res, next);
+      } catch (e) {
+        console.error('Could not parse XML.', e)
+      }
+      next(data);
+    });
+  },
+};
+
+
+/**
+ * An HTTP route.
+ */
+
+var Route = (function () {
+
+  function Route (req, defaultBodyMime, callback) {
+    this.req = req;
+    this.defaultBodyMime = defaultBodyMime || 'json';
+    this.callback = callback;
+  }
+
+  Route.prototype.get = function (query, next) {
+    if (typeof query == 'function') {
+      next = query;
+      query = null;
+    }
+    return this.callback(remutil.modify(remutil.request.url(this.req, {
+      query: query || {}
+    }), {
+      method: 'GET'
+    }), next);
+  };
+
+  Route.prototype.head = function (query, next) {
+    if (typeof query == 'function') {
+      next = query;
+      query = null;
+    }
+    return this.callback(remutil.modify(remutil.request.url(this.req, {
+      query: query || {}
+    }), {
+      method: 'HEAD'
+    }), next);
+  };
+
+  Route.prototype.post = function (mime, body, next) {
+    if (typeof body == 'function') {
+      next = body;
+      body = mime;
+      mime = this.defaultBodyMime;
+    }
+    return this.callback(remutil.modify(remutil.request.body(this.req, mime, body), {
+      method: 'POST'
+    }), next);
+  };
+
+  Route.prototype.put = function (mime, body, next) {
+    if (typeof body == 'function') {
+      next = body;
+      body = mime;
+      mime = this.defaultBodyMime;
+    }
+    return this.callback(remutil.modify(remutil.request.body(this.req, mime, body), {
+      method: 'PUT'
+    }), next);
+  };
+
+  Route.prototype.del = function (next) {
+    return this.callback(remutil.modify(this.req, {
+      method: 'DELETE'
+    }), next);
+  };
+
+  return Route;
+
+})();
+
+
 /**
  * API
  */
@@ -161,55 +314,6 @@ var API = (function () {
     this.secret = this.opts.secret;
     this.format = this.opts.format || 'json';
     this.agent = this.opts.agent; // HTTP agents. Node-only.
-
-    // Load format-specific options from the manifest.
-    if (!this.manifest.formats) {
-      this.manifest.formats = {json: {}};
-    }
-    if (!this.manifest.formats[this.format]) {
-      throw new Error("Format \"" + this.format + "\" not available. Please specify an available format in the options parameter.");
-    }
-    this.manifest = remutil.modify(this.manifest, this.manifest.formats[this.format]);
-
-    // User agent.
-    this.pre('request', function (req, next) {
-      req.headers['user-agent'] = req.headers['user-agent'] || rem.USER_AGENT;
-      next();
-    });
-    // Route root pathname.
-    if (this.manifest.basepath) {
-      this.pre('request', function (req, next) {
-        req.url.pathname = this.manifest.basepath + req.url.pathname;
-        next();
-      });
-    }
-    // Route suffix.
-    if (this.manifest.suffix) {
-      this.pre('request', function (req, next) {
-        req.url.pathname += this.manifest.suffix;
-        next();
-      });
-    }
-    // Route configuration parameters.
-    if (this.manifest.configParams) {
-      this.pre('request', function (req, next) {
-        var params = this.manifest.configParams;
-        for (var key in params) {
-          req.url.query[key] = this.opts[this.manifest.configParams[key]];
-        }
-        next();
-      });
-    }
-    // Route static parameters.
-    if (this.manifest.params) {
-      this.pre('request', function (req, next) {
-        var params = this.manifest.params;
-        for (var key in params) {
-          req.url.query[key] = params[key];
-        }
-        next();
-      });
-    }
   }
 
   // Configuration prompt.
@@ -272,15 +376,21 @@ var API = (function () {
     }
   }
 
-  API.prototype.stream = function () {
-    return invoke(this, Array.prototype.slice.call(arguments), function (req, next) {
-      this.send(req, function (err, res) {
-        this.middleware('response', req, res, function () {
-          next(req, res);
-        });
-      }.bind(this));
-    }.bind(this));
-  };
+  // Formats
+
+  for (var format in rem.parsers) {
+    (function (format) {
+      API.prototype[format] = function () {
+        return invoke(this, Array.prototype.slice.call(arguments), function (req, next) {
+          this.send(req, function (err, res) {
+            this.middleware('response', req, res, function () {
+              rem.parsers[format](req, res, next);
+            });
+          }.bind(this));
+        }.bind(this));
+      }
+    })(format);
+  }
 
   API.prototype.call = function () {
     return invoke(this, Array.prototype.slice.call(arguments), function (req, next) {
@@ -290,8 +400,7 @@ var API = (function () {
         } else {
           this.middleware('response', req, res, function () {
             this.parseStream(req, res, function (data) {
-              var media = new HyperMedia(this, res, data);
-              next && next(media.err, media.data, media);
+              next && next.call(this, res.statusCode >= 400 ? res.statusCode : 0, data, res);
             }.bind(this));
           }.bind(this));
         }
@@ -300,16 +409,16 @@ var API = (function () {
   };
 
   API.prototype.parseStream = function (req, res, next) {
-    rem.parsers[this.format](req, res, next);
+    rem.parsers[this.options.format](res, next);
   };
 
   API.prototype.send = function (req, next) {
     remutil.request.send(req, this.agent, next);
-  }
+  };
 
   // Root request shorthands.
 
-  API.prototype.get = function () {
+  API.prototype.get = function (route) {
     var route = this('');
     return route.get.apply(route, arguments);
   };
@@ -339,88 +448,6 @@ var API = (function () {
     return route.patch.apply(route, arguments);
   };
 
-  // Configuration/prompt
-
-  if (typeof require !== 'undefined') {
-
-    API.prototype._promptConfig = false;
-
-    API.prototype._persistConfig = false;
-
-    API.prototype.prompt = function (_persistConfig) {
-      this._persistConfig = _persistConfig || _persistConfig == null;
-      this._promptConfig = true;
-      return this;
-    };
-
-    API.prototype.configure = function (cont) {
-      //return cont();
-
-      var nconf = require('nconf');
-      var read = require('read');
-      var clc = require('cli-color');
-      var path = require('path');
-
-      // Configuration.
-      var configFile = rem.CONFIG_FILE || path.join(require('osenv').home(), '.remconf');
-      nconf.file(configFile);
-
-      // Optionally prompt for API key/secret.
-      var k, v, _ref, _ref1,
-        _this = this;
-      if (this.key) {
-        return cont();
-      }
-      if (!(this._promptConfig && this.manifest.id)) {
-        throw new Error('No API key specified.');
-      }
-      if (this._persistConfig && nconf.get(this.manifest.id)) {
-        _ref = nconf.get(this.manifest.id);
-        for (k in _ref) {
-          v = _ref[k];
-          this.opts[k] = v;
-        }
-        _ref1 = this.opts, this.key = _ref1.key, this.secret = _ref1.secret;
-        return cont();
-      }
-      console.log(clc.yellow('Initializing API keys for ' + this.manifest.id + ' on first use.'));
-      if (this.manifest.control) {
-        console.log(clc.yellow('Register for an API key here:'), this.manifest.control);
-      }
-      this.middleware('configure', function () {
-        read({
-          prompt: clc.yellow(this.manifest.id + ' API key: ')
-        }, function (err, key) {
-          _this.key = key;
-          _this.opts.key = key;
-          if (!key) {
-            console.error(clc.red('ERROR:'), 'No API key specified, aborting.');
-            process.exit(1);
-          }
-          return read({
-            prompt: clc.yellow(_this.manifest.id + ' API secret (if provided): ')
-          }, function (err, secret) {
-            _this.secret = secret;
-            _this.opts.secret = secret;
-            if (_this._persistConfig) {
-              nconf.set(_this.manifest.id + ':key', key);
-              nconf.set(_this.manifest.id + ':secret', secret);
-              return nconf.save(function (err, json) {
-                console.log(clc.yellow('Your credentials are saved to the configuration file ' + configFile));
-                console.log(clc.yellow('Edit that file to update or change your credentials.\n'));
-                return cont();
-              });
-            } else {
-              console.log('');
-              return cont();
-            }
-          });
-        });
-      });
-    };
-    
-  }
-
   // Throttling.
 
   API.prototype.throttle = function (rate) {
@@ -447,6 +474,69 @@ var API = (function () {
   // Return.
 
   return API;
+
+})();
+
+// Manifest API.
+
+(function () {
+
+  remutil.inherits(ManifestAPI, API);
+
+  function ManifestAPI (manifest, options) {
+    API.call(this, options);
+
+    // Load format-specific options from the manifest.
+    if (!this.manifest.formats) {
+      this.manifest.formats = {json: {}};
+    }
+    if (!this.manifest.formats[this.format]) {
+      throw new Error("Format \"" + this.format + "\" not available. Please specify an available format in the options parameter.");
+    }
+    this.manifest = remutil.modify(this.manifest, this.manifest.formats[this.format]);
+
+    // User agent.
+    this.pre('request', function (req, next) {
+      req.headers['user-agent'] = req.headers['user-agent'] || rem.userAgent;
+      next();
+    });
+    // Route root pathname.
+    if (this.manifest.basepath) {
+      this.pre('request', function (req, next) {
+        req.url.pathname = this.manifest.basepath + req.url.pathname;
+        next();
+      });
+    }
+    // Route suffix.
+    if (this.manifest.suffix) {
+      this.pre('request', function (req, next) {
+        req.url.pathname += this.manifest.suffix;
+        next();
+      });
+    }
+    // Route configuration parameters.
+    if (this.manifest.configParams) {
+      this.pre('request', function (req, next) {
+        var params = this.manifest.configParams;
+        for (var key in params) {
+          req.url.query[key] = this.opts[this.manifest.configParams[key]];
+        }
+        next();
+      });
+    }
+    // Route static parameters.
+    if (this.manifest.params) {
+      this.pre('request', function (req, next) {
+        var params = this.manifest.params;
+        for (var key in params) {
+          req.url.query[key] = params[key];
+        }
+        next();
+      });
+    }
+  }
+
+  return ManifestAPI;
 
 })();
 
@@ -485,56 +575,9 @@ rem.load = function (name, version, opts) {
   return rem.create(manifest, opts);
 };
 
-rem.url = function () {
-  var segments = Array.prototype.slice.call(arguments);
-  var query = typeof segments[segments.length - 1] == 'object' ? segments.pop() : {};
-  var url = remutil.url.parse(segments.shift());
-  url.pathname = remutil.path.join.apply(null, [url.pathname].concat(segments));
-  url.query = remutil.modify(url.query, query);
-
-  return new Route(remutil.request.create(url), 'form', function (req, next) {
-    req.headers['user-agent'] = req.headers['user-agent'] || rem.USER_AGENT;
-    // TODO rem.globalAgent
-    remutil.request.send(req, next);
-    return req;
-  });
-};
-
-rem.consume = remutil.consumeStream;
-
-rem.parsers = {
-  xml: function (req, res, next) {
-    remutil.consumeStream(res, function (data) {
-      try {
-        var libxmljs = require('libxmljs');
-      } catch (e) {
-        throw new Error('Please install libxmljs in order to parse XML APIs.')
-      }
-      try {
-        data = libxmljs.parseXmlString(data);
-      } catch (e) {
-        console.error('Could not parse XML.', e)
-      }
-      next(data);
-    });
-  },
-
-  json: function (stream) {
-    remutil.consumeStream(res, function (data) {
-      // Parse body
-      try {
-        // Remove BOM signatures.
-        if (data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf) {
-          data = data.slice(3);
-        }
-        data = JSON.parse(String(data));
-      } catch (e) {
-        console.error('Could not parse JSON.', e)
-      }
-      next(data);
-    });
-  }
-};
+/**
+ * Polling.
+ */
 
 function jsonpath (obj, keys) {
   keys.split('.').filter(String).forEach(function (key) {
@@ -570,6 +613,10 @@ rem.poll = function (endpoint, opts, callback) {
     });
   }, interval);
 }
+
+/**
+ * Server-side.
+ */
 
 if (typeof require != 'undefined') {
   // Authentication methods.

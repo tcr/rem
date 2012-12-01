@@ -23,6 +23,34 @@ rem.console(gh, {scope: ["user", "repo"]}, function (err, user) {
 });
 ```
 
+## API
+
+`api.FORMAT(PARTIAL_URL, SEGMENT, SEGMENT).METHOD(args)` returns response stream???
+
+The `rem` module itself is a simple URL fetcher for URLs.
+
+## Extending Rem
+
+rem.create(manifest, opts)
+
+API.pre('request', fn<request, next>)
+API.pre('response', fn<request, response, next>)
+API.pre('configure', f<>)
+API.parseStream<req, res, next<data>>
+
+## Predefined APIs
+
+You can create an API from a manifest.
+
+var word = rem.load('./word.json', [version]).configure({key:
+rem.create([manifest]).configure();
+rem.
+
+rem.API()
+rem.ManifestAPI()
+
+---
+
 ## Examples
 
 REM has examples for authentication and for [each builtin API service.](https://github.com/tcr/rem-js/tree/master/examples) These examples can be run from the command line:

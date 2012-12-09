@@ -305,15 +305,12 @@ var API = (function () {
 
   remutil.inherits(API, Middleware);
 
-  function API (manifest, opts) {
+  function API (manifest, options) {
     this.manifest = manifest;
-    this.opts = opts || {};
+    this.options = options || {};
 
-    // Load key, secret, format.
-    this.key = this.opts.key;
-    this.secret = this.opts.secret;
-    this.format = this.opts.format || 'json';
-    this.agent = this.opts.agent; // HTTP agents. Node-only.
+    // Defaults
+    this.options.format = this.options.format || 'json';
   }
 
   // Configuration prompt.
@@ -322,58 +319,25 @@ var API = (function () {
     return cont();
   };
 
-  // Callable function.
-
+  // Invoke as method.
   function invoke (api, segments, send) {
     var query = typeof segments[segments.length - 1] == 'object' ? segments.pop() : {};
     var pathname = remutil.path.join.apply(null, segments);
 
     return new Route(remutil.request.create({
       query: query, pathname: pathname
-    }), api.manifest.uploadFormat, middleware);
-
-    function middleware (req, next) {
-      // Expand payload shorthand.
-      api.configure(function () {
-        // Determine base that matches the path name.
-        var pathname = req.url.pathname.replace(/^(?!\/)/, '/')
-        // Bases can be fixed or an array of (pattern, base) tuples.
-        if (Array.isArray(api.manifest.base)) {
-          var base = '';
-          api.manifest.base.some(function (tuple) {
-            if (typeof tuple == 'string') {
-              // TODO this functionality should be removed
-              base = tuple;
-              return true;
-            } else {
-              if (pathname.match(new RegExp(tuple[0]))) {
-                base = tuple[1];
-                return true;
-              }
-            }
-          });
-        } else {
-          var base = String(api.manifest.base);
-        }
-        // Update the request with base.
-        req = remutil.request.url(req, remutil.url.parse(base))
-        req = remutil.request.url(req, {
-          pathname: remutil.path.join(req.url.pathname, pathname)
-        });
-
+    }), api.manifest.uploadFormat, function (req, next) {
+      api.middleware('request', req, function () {
         // Debug flag.
         if (api.debug) {
           console.error('[URL]', remutil.url.format(req.url));
         }
 
-        // Apply manifest filters.
-        api.middleware('request', req, function () {
-          send(req, next);
-        });
-      });
+        send(req, next);
 
-      return req;
-    }
+        return req;
+      });
+    });
   }
 
   // Formats
@@ -494,6 +458,36 @@ var API = (function () {
       throw new Error("Format \"" + this.format + "\" not available. Please specify an available format in the options parameter.");
     }
     this.manifest = remutil.modify(this.manifest, this.manifest.formats[this.format]);
+
+    // Response. Expand payload shorthand.
+    this.pre('request', function (req, next) {
+      // Determine base that matches the path name.
+      var pathname = req.url.pathname.replace(/^(?!\/)/, '/')
+      // Bases can be fixed or an array of (pattern, base) tuples.
+      if (Array.isArray(api.manifest.base)) {
+        var base = '';
+        api.manifest.base.some(function (tuple) {
+          if (typeof tuple == 'string') {
+            // TODO this functionality should be removed
+            base = tuple;
+            return true;
+          } else {
+            if (pathname.match(new RegExp(tuple[0]))) {
+              base = tuple[1];
+              return true;
+            }
+          }
+        });
+      } else {
+        var base = String(api.manifest.base);
+      }
+      
+      // Update the request with base.
+      req = remutil.request.url(req, remutil.url.parse(base))
+      req = remutil.request.url(req, {
+        pathname: remutil.path.join(req.url.pathname, pathname)
+      });
+    });
 
     // User agent.
     this.pre('request', function (req, next) {

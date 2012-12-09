@@ -10,7 +10,8 @@ remutil.clone = function (obj) {
 };
 
 remutil.modify = function (a, b) {
-  var c = remutil.clone(a);
+  //var c = remutil.clone(a);
+  var c = {};
   for (var k in a) {
     if (Object.prototype.hasOwnProperty.call(a, k)) {
       c[k] = a[k];

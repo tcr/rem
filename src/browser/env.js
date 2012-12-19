@@ -205,3 +205,9 @@ env.lookupManifestSync = null;
 env.lookupManifest = function (name, next) {
   // TODO
 };
+
+// Array/Buffer detection
+
+env.isList = function (obj) {
+  return Object.prototype.toString.call(obj) === "[object Array]";
+};

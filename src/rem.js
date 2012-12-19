@@ -24,22 +24,20 @@ function clone (obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
-function modify (a, b) {
-  var c = remutil.clone(a);
-  for (var k in a) {
-    if (Object.prototype.hasOwnProperty.call(a, k)) {
-      c[k] = a[k];
-    }
-  }
+function augment (c, b) {
   for (var k in b) {
-    if (Object.prototype.hasOwnProperty.call(b, k)) {
+    if (Object.prototype.hasOwnProperty.call(b, k) && b[k] != null) {
       c[k] = b[k];
     }
   }
   return c;
 }
 
-var envtype = (typeof module !== 'undefined' && module.exports) ? 'node' : 'browser';
+function safeJSONStingify (json) {
+  return JSON.stringify(data).replace(/[\u007f-\uffff]/g, function (c) {
+    return "\\u" + ("0000" + c.charCodeAt(0).toString(16)).slice(-4);
+  });
+}
 
 var Middleware = (function () {
 
@@ -71,96 +69,29 @@ var Middleware = (function () {
 
 
 /**
+ * Environment
+ */
+
+var envtype = (typeof module !== 'undefined' && module.exports) ? 'node' : 'browser';
+
+if (envtype == 'node') {
+  var env = require('./node/env');
+}
+
+
+/**
  * Module
  */
 
-var rem = (envtype == 'node') ? exports ? this.rem = {};
+var rem = (envtype == 'node') ? exports : this.rem = {};
+
+// Configuration.
 rem.userAgent = 'Mozilla/5.0 (compatible; REMbot/1.0; +http://remlib.org/)';
-rem.configFile = null;
 
-/** 
- * URL functions
- */
-
-// protocol://auth@hostname:port/pathname?query#hash
-
-remutil.url = {
-
-  parse: null,
-
-  format: null,
-
-  host: function (url) {
-    return url.hostname && (url.hostname + (url.port ? ':' + url.port : ''));
-  },
-
-  path: function (url) {
-    return url.pathname
-      + (remutil.qs.stringify(url.query) ? '?' + remutil.qs.stringify(url.query) : '')
-      + (url.hash ? '#' + encodeURIComponent(url.hash) : '');
-  }
-
-};
+rem.env = env;
 
 /**
- * Request functions
- */
-
-remutil.request = {
-
-  create: function (mod) {
-    return remutil.request.url({
-      method: 'GET',
-      headers: {},
-      url: null,
-      body: null
-    }, mod);
-  },
-
-  url: function (opts, mod) {
-    if (typeof mod == 'string') {
-      mod = remutil.url.parse(mod);
-    }
-    mod.query = remutil.modify(opts.url ? opts.url.query : {}, mod.query);
-    opts = remutil.modify(opts, {
-      url: opts.url ? remutil.modify(opts.url, mod) : mod
-    });
-    return remutil.modify(opts, {
-      headers: remutil.modify(opts.headers, {
-        'host': remutil.url.host(opts.url)
-      })
-    })
-  },
-
-  body: function (opts, type, body) {
-    // Expand payload shorthand.
-    if (typeof body == 'object') {
-      if (type == 'form' || type == 'application/x-www-form-urlencoded') {
-        type = 'application/x-www-form-urlencoded';
-        body = remutil.qs.stringify(body);
-      }
-      if (type == 'json' || type == 'application/json') {
-        type = 'application/json';
-        body = remutil.safeJSONStringify(body);
-      }
-    }
-
-    return remutil.modify(opts, {
-      headers: remutil.modify(opts.headers, {
-        'content-length': body.length,
-        'content-type': type
-      }),
-      body: body
-    });
-  },
-
-  send: null
-
-};
-
-
-/**
- * Local calling.
+ * Data formats.
  */
 
 /*
@@ -182,9 +113,11 @@ rem.url = function () {
 
 rem.serializer = {
   json: function (data) {
-    return JSON.stringify(data).replace(/[\u007f-\uffff]/g, function (c) {
-      return "\\u" + ("0000" + c.charCodeAt(0).toString(16)).slice(-4);
-    });
+    return safeJSONStringify(data);
+  },
+
+  form: function (data) {
+
   }
 };
 
@@ -194,18 +127,18 @@ rem.parsers = {
   },
 
   binary: function (res, next) {
-    remutil.consumeStream(res, next);
+    env.consumeStream(res, next);
   },
 
   text: function (res, next) {
-    remutil.consumeStream(res, function (data) {
+    env.consumeStream(res, function (data) {
       // Strip BOM signatures.
       next(String(data).replace(/^\uFEFF/, ''));
     });
   },
 
   json: function (res, next) {
-    rem.parsers.text(req, res, function (data) {
+    rem.parsers.text(res, function (data) {
       try {
         data = JSON.parse(String(data));
       } catch (e) {
@@ -213,18 +146,98 @@ rem.parsers = {
       }
       next(data);
     });
-  }
+  },
 
   xml: function (res, next) {
-    rem.parsers.text(req, res, function (data) {
+    rem.parsers.text(res, function (data) {
       try {
-        remutil.parseXML(res, next);
+        env.parseXML(res, next);
       } catch (e) {
         console.error('Could not parse XML.', e)
       }
       next(data);
     });
   },
+};
+
+
+/** 
+ * URL functions
+ */
+
+// protocol://auth@hostname:port/pathname?query#hash
+
+Url = {
+
+  getHost: function (url) {
+    return url.hostname && (url.hostname + (url.port ? ':' + url.port : ''));
+  },
+
+  getPath: function (url) {
+    return url.pathname
+      + (env.qs.stringify(url.query) ? '?' + env.qs.stringify(url.query) : '')
+      + (url.hash ? '#' + encodeURIComponent(url.hash) : '');
+  }
+
+};
+
+/**
+ * Request functions
+ */
+
+Request = {
+
+  create: function (mod) {
+    return Request.update({
+      method: 'GET',
+      headers: {},
+      url: {
+        protocol: '',
+        hostname: '',
+        port: '',
+        pathname: '',
+        query: {},
+        hash: ''
+      },
+      body: null
+    }, mod);
+  },
+
+  update: function (opts, mod) {
+    if (typeof mod == 'string') {
+      mod = env.url.parse(mod);
+    }
+    if (mod.url) {
+      mod.url.query = augment(opts.url ? opts.url.query : {}, mod.url.query);
+    }
+    mod.url = augment(opts.url || {}, mod.url || {});
+    return augment(opts, mod);
+  },
+
+  setBody: function (opts, type, body) {
+    // Expand payload shorthand.
+    if (typeof body == 'object' && !env.isList(body)) {
+      if (type == 'form' || type == 'application/x-www-form-urlencoded') {
+        type = 'application/x-www-form-urlencoded';
+        body = env.qs.stringify(body);
+      }
+      if (type == 'json' || type == 'application/json') {
+        type = 'application/json';
+        body = rem.serializer.json(body);
+      }
+    }
+
+    augment(opts.headers, {
+      'content-length': body.length,
+      'content-type': type
+    });
+    return augment(opts, {
+      body: body
+    });
+  },
+
+  send: null
+
 };
 
 
@@ -245,9 +258,10 @@ var Route = (function () {
       next = query;
       query = null;
     }
-    return this.callback(remutil.modify(remutil.request.url(this.req, {
-      query: query || {}
-    }), {
+    return this.callback(Request.update(this.req, {
+      url: {
+        query: query || {}
+      },
       method: 'GET'
     }), next);
   };
@@ -257,9 +271,10 @@ var Route = (function () {
       next = query;
       query = null;
     }
-    return this.callback(remutil.modify(remutil.request.url(this.req, {
-      query: query || {}
-    }), {
+    return this.callback(Request.update(this.req, {
+      url: {
+        query: query || {}
+      },
       method: 'HEAD'
     }), next);
   };
@@ -270,7 +285,7 @@ var Route = (function () {
       body = mime;
       mime = this.defaultBodyMime;
     }
-    return this.callback(remutil.modify(remutil.request.body(this.req, mime, body), {
+    return this.callback(Request.update(Request.setBody(this.req, mime, body), {
       method: 'POST'
     }), next);
   };
@@ -281,13 +296,13 @@ var Route = (function () {
       body = mime;
       mime = this.defaultBodyMime;
     }
-    return this.callback(remutil.modify(remutil.request.body(this.req, mime, body), {
+    return this.callback(Request.update(Request.setBody(this.req, mime, body), {
       method: 'PUT'
     }), next);
   };
 
   Route.prototype.del = function (next) {
-    return this.callback(remutil.modify(this.req, {
+    return this.callback(Request.update(this.req, {
       method: 'DELETE'
     }), next);
   };
@@ -298,15 +313,15 @@ var Route = (function () {
 
 
 /**
- * API
+ * Client
  */
 
-var API = (function () {
+var Client = (function () {
 
-  remutil.inherits(API, Middleware);
+  env.inherits(Client, Middleware);
 
-  function API (manifest, options) {
-    this.manifest = manifest;
+  function Client (options) {
+    this.manifest = {}; // TODO What?
     this.options = options || {};
 
     // Defaults
@@ -315,26 +330,27 @@ var API = (function () {
 
   // Configuration prompt.
 
-  API.prototype.configure = function(cont) {
+  Client.prototype.configure = function (next) {
     return cont();
   };
 
   // Invoke as method.
   function invoke (api, segments, send) {
     var query = typeof segments[segments.length - 1] == 'object' ? segments.pop() : {};
-    var pathname = remutil.path.join.apply(null, segments);
+    var url = ((segments[0] || '').indexOf('//') != -1 ? segments.shift() + (segments.length ? '/' : '') : '')
+      + env.joinPath.apply(null, segments);
 
-    return new Route(remutil.request.create({
-      query: query, pathname: pathname
+    return new Route(Request.create({
+      url: env.url.parse(url)
+    // TODO no "uploadFormat"
     }), api.manifest.uploadFormat, function (req, next) {
       api.middleware('request', req, function () {
         // Debug flag.
         if (api.debug) {
-          console.error('[URL]', remutil.url.format(req.url));
+          console.error('[URL]', env.url.format(req.url));
         }
 
         send(req, next);
-
         return req;
       });
     });
@@ -344,11 +360,13 @@ var API = (function () {
 
   for (var format in rem.parsers) {
     (function (format) {
-      API.prototype[format] = function () {
+      Client.prototype[format] = function () {
         return invoke(this, Array.prototype.slice.call(arguments), function (req, next) {
           this.send(req, function (err, res) {
             this.middleware('response', req, res, function () {
-              rem.parsers[format](req, res, next);
+              rem.parsers[format](req, function (data) {
+                next && next.call(this, res.statusCode >= 400 ? res.statusCode : 0, data, res);
+              });
             });
           }.bind(this));
         }.bind(this));
@@ -356,7 +374,7 @@ var API = (function () {
     })(format);
   }
 
-  API.prototype.call = function () {
+  Client.prototype.call = function () {
     return invoke(this, Array.prototype.slice.call(arguments), function (req, next) {
       this.send(req, function (err, res) {
         if (err) {
@@ -372,49 +390,50 @@ var API = (function () {
     }.bind(this));
   };
 
-  API.prototype.parseStream = function (req, res, next) {
+  Client.prototype.parseStream = function (req, res, next) {
     rem.parsers[this.options.format](res, next);
   };
 
-  API.prototype.send = function (req, next) {
-    remutil.request.send(req, this.agent, next);
+  Client.prototype.send = function (req, next) {
+    env.sendRequest(req, this.agent, next);
   };
 
   // Root request shorthands.
 
-  API.prototype.get = function (route) {
+  Client.prototype.get = function (route) {
     var route = this('');
     return route.get.apply(route, arguments);
   };
 
-  API.prototype.post = function () {
+  Client.prototype.post = function () {
     var route = this('');
     return route.post.apply(route, arguments);
   };
 
-  API.prototype.del = function () {
+  Client.prototype.del = function () {
     var route = this('');
     return route.del.apply(route, arguments);
   };
 
-  API.prototype.head = function () {
+  Client.prototype.head = function () {
     var route = this('');
     return route.head.apply(route, arguments);
   };
 
-  API.prototype.put = function () {
+  Client.prototype.put = function () {
     var route = this('');
     return route.put.apply(route, arguments);
   };
 
-  API.prototype.patch = function () {
+  Client.prototype.patch = function () {
     var route = this('');
     return route.patch.apply(route, arguments);
   };
 
   // Throttling.
 
-  API.prototype.throttle = function (rate) {
+  /*
+  Client.prototype.throttle = function (rate) {
     var api = this, queue = [], rate = rate || 1;
 
     setInterval(function () {
@@ -434,39 +453,41 @@ var API = (function () {
 
     return api;
   };
+  */
 
   // Return.
 
-  return API;
+  return Client;
 
 })();
 
-// Manifest API.
+// Manifest Client.
 
-(function () {
+var ManifestClient = (function () {
 
-  remutil.inherits(ManifestAPI, API);
+  env.inherits(ManifestClient, Client);
 
-  function ManifestAPI (manifest, options) {
-    API.call(this, options);
+  function ManifestClient (manifest, options) {
+    Client.call(this, options);
+    this.manifest = manifest;
 
     // Load format-specific options from the manifest.
     if (!this.manifest.formats) {
       this.manifest.formats = {json: {}};
     }
-    if (!this.manifest.formats[this.format]) {
-      throw new Error("Format \"" + this.format + "\" not available. Please specify an available format in the options parameter.");
+    if (!this.manifest.formats[this.options.format]) {
+      throw new Error("Format \"" + this.options.format + "\" not available. Please specify an available format in the options parameter.");
     }
-    this.manifest = remutil.modify(this.manifest, this.manifest.formats[this.format]);
+    augment(this.manifest, this.manifest.formats[this.options.format]);
 
     // Response. Expand payload shorthand.
     this.pre('request', function (req, next) {
       // Determine base that matches the path name.
       var pathname = req.url.pathname.replace(/^(?!\/)/, '/')
       // Bases can be fixed or an array of (pattern, base) tuples.
-      if (Array.isArray(api.manifest.base)) {
+      if (env.isList(this.manifest.base)) {
         var base = '';
-        api.manifest.base.some(function (tuple) {
+        this.manifest.base.some(function (tuple) {
           if (typeof tuple == 'string') {
             // TODO this functionality should be removed
             base = tuple;
@@ -479,14 +500,19 @@ var API = (function () {
           }
         });
       } else {
-        var base = String(api.manifest.base);
+        var base = String(this.manifest.base);
       }
       
       // Update the request with base.
-      req = remutil.request.url(req, remutil.url.parse(base))
-      req = remutil.request.url(req, {
-        pathname: remutil.path.join(req.url.pathname, pathname)
+      Request.update(req, {
+        url: env.url.parse(base)
       });
+      Request.update(req, {
+        url: {
+          pathname: env.joinPath(req.url.pathname, pathname)
+        }
+      });
+      next();
     });
 
     // User agent.
@@ -528,9 +554,13 @@ var API = (function () {
         next();
       });
     }
+
+    this.configure = function (next) {
+      return env.configureManifestOptions(this, next);
+    };
   }
 
-  return ManifestAPI;
+  return ManifestClient;
 
 })();
 
@@ -538,18 +568,19 @@ var API = (function () {
  * Public API.
  */
 
-rem.API = API;
+rem.Client = Client;
+rem.ManifestClient = ManifestClient;
 
 rem.create = function (manifest, opts) {
   if (typeof manifest == 'string') {
     manifest = { base: manifest };
   }
-  return remutil.callable(new API(manifest, opts));
+  return callable(new ManifestClient(manifest, opts));
 };
 
 // TODO Be able to load manifest files locally.
 rem.load = function (name, version, opts) {
-  manifest = remutil.lookup(name);
+  manifest = env.lookupManifestSync(name);
   version = version = '*' ? Number(version) || '*' : '*';
   if (!manifest || !manifest[version]) {
     if (version == '*' && manifest) {
@@ -570,9 +601,10 @@ rem.load = function (name, version, opts) {
 };
 
 /**
- * Polling.
+ * Polling
  */
 
+/*
 function jsonpath (obj, keys) {
   keys.split('.').filter(String).forEach(function (key) {
     obj = obj && obj[key];
@@ -607,17 +639,18 @@ rem.poll = function (endpoint, opts, callback) {
     });
   }, interval);
 }
+*/
 
 /**
- * Server-side.
+ * Includes
  */
 
-if (typeof require != 'undefined') {
+if (envtype == 'node') {
   // Authentication methods.
-  require('./oauth');
-  require('./aws');
-  require('./session');
+  require('./node/oauth');
+  //require('./node/session');
+  //require('./node/aws');
 
   // TODO more than Oauth.
-  rem.console = rem.oauthConsole;
+  rem.prompt = rem.promptOauth;
 }

@@ -13,7 +13,7 @@
     "osenv": "0.0.3",
     "cli-color": "~0.1.7",
     "async": "~0.1.22",
-    "open": "0.0.2",
+    "open": "0.0.2"
   },
   "bin": "src/node/cli.js",
   "main": "./src/rem.js",

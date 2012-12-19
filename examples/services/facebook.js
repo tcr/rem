@@ -1,10 +1,10 @@
 var rem = require('../..');
 
 // Create Dropbox API, prompting for key/secret.
-var fb = rem.load('facebook', 1.0).prompt();
+var fb = rem.load('facebook.com', 1.0);
 
 // Authenticate user via the console.
-rem.console(fb, {
+rem.prompt(fb, {
   scope: ["user_photos"]
 }, function (err, user) {
 
@@ -15,7 +15,7 @@ rem.console(fb, {
 
     // Get your latest image.
     user('me/photos').get(function(err, json) {
-      rem.url(json.data[0].source).head(function(err, res) {
+      (new rem.Client()).stream(json.data[0].source).head(function(err, stream, res) {
         console.log('Your latest image: (error', err, ')');
         console.log(res.headers);
       });

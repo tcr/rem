@@ -11,8 +11,34 @@ var clc = require('cli-color');
 var querystring = require('querystring');
 
 // Namespace.
-var rem = require('./rem');
-var remutil = require('./remutil');
+var rem = require('../rem');
+
+
+/**
+ * Utilities
+ */
+
+function callable (obj) {
+  var f = function () {
+    return f.call.apply(f, arguments);
+  };
+  f.__proto__ = obj;
+  return f;
+};
+
+function clone (obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+function augment (c, b) {
+  for (var k in b) {
+    if (Object.prototype.hasOwnProperty.call(b, k) && b[k] != null) {
+      c[k] = b[k];
+    }
+  }
+  return c;
+}
+
 
 /**
  * OAuth.
@@ -25,7 +51,7 @@ var remutil = require('./remutil');
 // oobCallback
 // oobVerifier
 
-rem.oauth = function (api, callback) {
+rem.oauth = function (api, callback) {;
   switch (String(api.manifest.auth.version).toLowerCase()) {
     case '1.0':
     case '1.0a':
@@ -51,15 +77,15 @@ var OAuth1API = (function (_super) {
 
   var nodeoauth = require("oauth");
 
-  util.inherits(OAuth1API, rem.API);
+  util.inherits(OAuth1API, rem.Client);
 
-  function OAuth1API (manifest, opts) {
-    rem.API.apply(this, arguments);
+  function OAuth1API (manifest, options) {
+    rem.Client.apply(this, arguments);
 
     this.config = this.manifest.auth;
     this.oauth = new nodeoauth.OAuth(this.config.requestEndpoint,
-      this.config.accessEndpoint, this.opts.key, this.opts.secret,
-      this.config.version || '1.0', this.opts.oauthRedirect, "HMAC-SHA1", null, {
+      this.config.accessEndpoint, this.options.key, this.options.secret,
+      this.config.version || '1.0', this.options.oauthRedirect, "HMAC-SHA1", null, {
         'User-Agent': rem.USER_AGENT,
         "Accept": "*/*",
         "Connection": "close"
@@ -68,7 +94,7 @@ var OAuth1API = (function (_super) {
 
   OAuth1API.prototype.send = function (req, next) {
     // OAuth request.
-    var args = [remutil.url.format(req.url), this.opts.oauthAccessToken, this.opts.oauthAccessSecret];
+    var args = [rem.env.url.format(req.url), this.options.oauthAccessToken, this.options.oauthAccessSecret];
     if (req.method === 'PUT' || req.method === 'POST') {
       // Signatures need to be calculated from forms; let node-oauth do that
       if (req.headers['content-type'] === 'application/x-www-form-urlencoded') {
@@ -90,14 +116,14 @@ var OAuth1API = (function (_super) {
 
   OAuth1API.prototype.saveState = function (next) {
     return next({
-      oauthAccessToken: this.opts.oauthAccessToken,
-      oauthAccessSecret: this.opts.oauthAccessSecret
+      oauthAccessToken: this.options.oauthAccessToken,
+      oauthAccessSecret: this.options.oauthAccessSecret
     });
   };
 
   OAuth1API.prototype.saveSession = function (req, next) {
-    req.session.oauthAccessToken = this.opts.oauthAccessToken;
-    req.session.oauthAccessSecret = this.opts.oauthAccessSecret;
+    req.session.oauthAccessToken = this.options.oauthAccessToken;
+    req.session.oauthAccessSecret = this.options.oauthAccessSecret;
     req.user = this;
     return next(req);
   };
@@ -142,37 +168,35 @@ var OAuth1Authentication = (function () {
     var next = args.pop();
     var params = args.pop();
 
-    this.api.configure(function () {
-      this.oauth = new nodeoauth.OAuth(this.config.requestEndpoint, 
-        this.config.accessEndpoint, this.api.key, this.api.secret,
-        this.config.version || '1.0', this.oauthRedirect, "HMAC-SHA1", null, {
-          'User-Agent': rem.USER_AGENT,
-          "Accept": "*/*",
-          "Connection": "close"
-        });
+    this.oauth = new nodeoauth.OAuth(this.config.requestEndpoint, 
+      this.config.accessEndpoint, this.api.options.key, this.api.options.secret,
+      this.config.version || '1.0', this.oauthRedirect, "HMAC-SHA1", null, {
+        'User-Agent': rem.USER_AGENT,
+        "Accept": "*/*",
+        "Connection": "close"
+      });
 
-      // Filter parameters.
-      params = remutil.modify(params || {}, this.config.params || {});
-      if ((params.scope != null) && typeof params.scope === 'object') {
-        params.scope = params.scope.join(this.config.scopeSeparator || ' ');
-      }
-      // oauth_callback needed for Twitter, etc.
-      if (this.oauthRedirect) {
-        params['oauth_callback'] = this.oauthRedirect;
-      }
+    // Filter parameters.
+    params = augment(params || {}, this.config.params || {});
+    if ((params.scope != null) && typeof params.scope === 'object') {
+      params.scope = params.scope.join(this.config.scopeSeparator || ' ');
+    }
+    // oauth_callback needed for Twitter, etc.
+    if (this.oauthRedirect) {
+      params['oauth_callback'] = this.oauthRedirect;
+    }
 
-      this.oauth.getOAuthRequestToken(params, function (err, oauthRequestToken, oauthRequestSecret, results) {
-        if (err) {
-          console.error("Error requesting OAuth token: " + JSON.stringify(err));
-        } else {
-          var authurl = remutil.url.parse(this.config.authorizeEndpoint);
-          authurl.query.oauth_token = oauthRequestToken;
-          if (this.oauthRedirect) {
-            authurl.query.oauth_callback = this.oauthRedirect;
-          }
-          next(remutil.url.format(authurl), oauthRequestToken, oauthRequestSecret, results);
+    this.oauth.getOAuthRequestToken(params, function (err, oauthRequestToken, oauthRequestSecret, results) {
+      if (err) {
+        console.error("Error requesting OAuth token: " + JSON.stringify(err));
+      } else {
+        var authurl = rem.env.url.parse(this.config.authorizeEndpoint);
+        authurl.query.oauth_token = oauthRequestToken;
+        if (this.oauthRedirect) {
+          authurl.query.oauth_callback = this.oauthRedirect;
         }
-      }.bind(this));
+        next(rem.env.url.format(authurl), oauthRequestToken, oauthRequestSecret, results);
+      }
     }.bind(this));
   };
 
@@ -187,7 +211,7 @@ var OAuth1Authentication = (function () {
       throw new Error('Out-of-band OAuth for this API requires a verification code.');
     }
     if (!this.oob) {
-      verifier = remutil.url.parse(verifier).query.oauth_verifier;
+      verifier = rem.env.url.parse(verifier).query.oauth_verifier;
     }
 
     var auth = this;
@@ -209,11 +233,11 @@ var OAuth1Authentication = (function () {
   };
 
   OAuth1Authentication.prototype.loadState = function (data, next) {
-    var opts = remutil.clone(this.api.opts);
-    opts.oauthAccessToken = data.oauthAccessToken;
-    opts.oauthAccessSecret = data.oauthAccessSecret;
-    opts.oauthRedirect = this.oauthRedirect;
-    return next(remutil.callable(new OAuth1API(this.api.manifest, opts)));
+    var options = clone(this.api.options);
+    options.oauthAccessToken = data.oauthAccessToken;
+    options.oauthAccessSecret = data.oauthAccessSecret;
+    options.oauthRedirect = this.oauthRedirect;
+    return next(callable(new OAuth1API(this.api.manifest, options)));
   };
 
   OAuth1Authentication.prototype.startSession = function (req) {
@@ -247,7 +271,7 @@ var OAuth1Authentication = (function () {
   };
 
   OAuth1Authentication.prototype.middleware = function (callback) {
-    var pathname = remutil.url.parse(this.oauthRedirect).pathname;
+    var pathname = rem.env.url.parse(this.oauthRedirect).pathname;
 
     var auth = this;
     return function (req, res, next) {
@@ -310,18 +334,18 @@ var OAuth2API = (function (_super) {
     return this._request("DELETE", url, {}, "", accessToken, cb);
   };
 
-  util.inherits(OAuth2API, rem.API);
+  util.inherits(OAuth2API, rem.Client);
 
-  function OAuth2API(manifest, opts) {
+  function OAuth2API(manifest, options) {
     // Constructor.
-    rem.API.apply(this, arguments);
+    rem.ManifestClient.apply(this, arguments);
     this.config = this.manifest.auth;
-    this.oauth = new nodeoauth.OAuth2(this.opts.key, this.opts.secret, this.config.base);
+    this.oauth = new nodeoauth.OAuth2(this.options.key, this.options.secret, this.config.base);
   }
 
   OAuth2API.prototype.send = function (req, next) {
     // OAuth request.
-    var args = [remutil.url.format(req.url), this.opts.oauthAccessToken];
+    var args = [rem.env.url.format(req.url), this.options.oauthAccessToken];
     if (req.method === 'PUT' || req.method === 'POST') {
       args.push(String(req.body), req.headers['content-type']);
     }
@@ -347,25 +371,25 @@ var OAuth2API = (function (_super) {
   };
 
   OAuth2API.prototype.validate = function (cb) {
-    if (!this.opts.validate) {
+    if (!this.options.validate) {
       throw new Error('Manifest does not define mechanism for validating OAuth.');
     }
-    return this(this.opts.validate).get(function (err, data) {
+    return this(this.options.validate).get(function (err, data) {
       return cb(err);
     });
   };
 
   OAuth2API.prototype.saveState = function (next) {
     return next({
-      oauthRedirect: this.opts.oauthRedirect,
-      oauthAccessToken: this.opts.oauthAccessToken,
-      oauthRefreshToken: this.opts.oauthRefreshToken
+      oauthRedirect: this.options.oauthRedirect,
+      oauthAccessToken: this.options.oauthAccessToken,
+      oauthRefreshToken: this.options.oauthRefreshToken
     });
   };
 
   OAuth2API.prototype.saveSession = function (req, next) {
-    req.session.oauthAccessToken = this.opts.oauthAccessToken;
-    req.session.oauthRefreshToken = this.opts.oauthRefreshToken;
+    req.session.oauthAccessToken = this.options.oauthAccessToken;
+    req.session.oauthRefreshToken = this.options.oauthRefreshToken;
     req.user = this;
     return next(req);
   };
@@ -401,16 +425,14 @@ var OAuth2Authentication = (function () {
 
     var cb, params, _arg, _i;
     var _this = this;
-    this.api.configure(function () {
-      _this.oauth = new nodeoauth.OAuth2(_this.api.key, _this.api.secret,
-        _this.config.base, _this.config.authorizePath, _this.config.tokenPath);
-      params = remutil.modify(_this.config.params || {}, params || {});
-      if ((params.scope != null) && typeof params.scope === 'object') {
-        params.scope = params.scope.join(_this.config.scopeSeparator || ' ');
-      }
-      params.redirect_uri = _this.oauthRedirect;
-      return cb(_this.oauth.getAuthorizeUrl(params));
-    });
+    _this.oauth = new nodeoauth.OAuth2(_this.api.options.key, _this.api.options.secret,
+      _this.config.base, _this.config.authorizePath, _this.config.tokenPath);
+    params = augment(_this.config.params || {}, params || {});
+    if ((params.scope != null) && typeof params.scope === 'object') {
+      params.scope = params.scope.join(_this.config.scopeSeparator || ' ');
+    }
+    params.redirect_uri = _this.oauthRedirect;
+    return cb(_this.oauth.getAuthorizeUrl(params));
   };
 
   OAuth2Authentication.prototype.complete = function () {
@@ -424,7 +446,7 @@ var OAuth2Authentication = (function () {
       _this = this;
     
     if (!this.oob) {
-      verifier = remutil.url.parse(verifier).query.code;
+      verifier = rem.env.url.parse(verifier).query.code;
     }
     return this.oauth.getOAuthAccessToken(verifier, {
       redirect_uri: this.oauthRedirect,
@@ -445,11 +467,11 @@ var OAuth2Authentication = (function () {
   };
 
   OAuth2Authentication.prototype.loadState = function (data, next) {
-    var opts = remutil.clone(this.api.opts);
-    opts.oauthAccessToken = data.oauthAccessToken;
-    opts.oauthRefreshToken = data.oauthRefreshToken;
-    opts.oauthRedirect = this.oauthRedirect;
-    return next(remutil.callable(new OAuth2API(this.api.manifest, opts)));
+    var options = clone(this.api.options);
+    options.oauthAccessToken = data.oauthAccessToken;
+    options.oauthRefreshToken = data.oauthRefreshToken;
+    options.oauthRedirect = this.oauthRedirect;
+    return next(callable(new OAuth2API(this.api.manifest, options)));
   };
 
   OAuth2Authentication.prototype.startSession = function () {
@@ -480,7 +502,7 @@ var OAuth2Authentication = (function () {
 
   OAuth2Authentication.prototype.middleware = function (cb) {
     var _this = this;
-    var pathname = remutil.url.parse(this.oauthRedirect).pathname;
+    var pathname = rem.env.url.parse(this.oauthRedirect).pathname;
     return function (req, res, next) {
       if (req.path === pathname) {
         if (!_this.oauth) {
@@ -519,61 +541,59 @@ rem.oauthConsoleOob = function () {
   var api = args.shift();
   var params = args.pop(); // optional
 
-  return api.configure(function () {
-    // Out-of-band authentication.
-    var oauth = rem.oauth(api);
-    return oauth.start(function (url, token, secret) {
-      console.error(clc.yellow("To authenticate, visit: " + url));
-      if (api.manifest.auth.oobVerifier) {
-        return read({
-          prompt: clc.yellow("Type in the verification code: ")
-        }, function (err, verifier) {
-          return oauth.complete(verifier, token, secret, cb);
-        });
-      } else {
-        return read({
-          prompt: clc.yellow("Hit any key to continue...")
-        }, function (err) {
-          console.error("");
-          return oauth.complete(token, secret, cb);
-        });
-      }
-    });
+  // Out-of-band authentication.
+  var oauth = rem.oauth(api);
+  return oauth.start(function (url, token, secret) {
+    console.error(clc.yellow("To authenticate, visit: " + url));
+    if (api.manifest.auth.oobVerifier) {
+      return read({
+        prompt: clc.yellow("Type in the verification code: ")
+      }, function (err, verifier) {
+        return oauth.complete(verifier, token, secret, cb);
+      });
+    } else {
+      return read({
+        prompt: clc.yellow("Hit any key to continue...")
+      }, function (err) {
+        console.error("");
+        return oauth.complete(token, secret, cb);
+      });
+    }
   });
 };
 
-rem.oauthConsole = function () {
+rem.promptOauth = function () {
   var args = Array.prototype.slice.call(arguments);
   var cb = args.pop();
   var api = args.shift();
   var params = args.pop(); // optional
 
-  // Create OAuth server configuration.
-  var app, oauth, port, _ref1;
-  port = (_ref1 = params != null ? params.port : void 0) != null ? _ref1 : 3000;
-  oauth = rem.oauth(api, "http://localhost:" + port + "/oauth/callback/");
-  app = express.createServer();
-  app.use(express.cookieParser());
-  app.use(express.session({
-    secret: "!"
-  }));
-
-  // OAuth callback.
-  app.use(oauth.middleware(function (req, res, next) {
-    res.send("<h1>Oauthenticated.</h1><p>Return to your console, hero!</p><p>To restart authentication, refresh the page.</p>");
-    console.error("");
-    return process.nextTick(function () {
-      return cb(null, req.user);
-    });
-  }));
-  // Login page.
-  app.get('/', function (req, res) {
-    return oauth.startSession(req, params || {}, function (url) {
-      return res.redirect(url);
-    });
-  });
-  // Listen on server.
   api.configure(function () {
+    // Create OAuth server configuration.
+    var app, oauth, port, _ref1;
+    port = (_ref1 = params != null ? params.port : void 0) != null ? _ref1 : 3000;
+    oauth = rem.oauth(api, "http://localhost:" + port + "/oauth/callback/");
+    app = express.createServer();
+    app.use(express.cookieParser());
+    app.use(express.session({
+      secret: "!"
+    }));
+
+    // OAuth callback.
+    app.use(oauth.middleware(function (req, res, next) {
+      res.send("<h1>Oauthenticated.</h1><p>Return to your console, hero!</p><p>To restart authentication, refresh the page.</p>");
+      console.error("");
+      return process.nextTick(function () {
+        return cb(null, req.user);
+      });
+    }));
+    // Login page.
+    app.get('/', function (req, res) {
+      return oauth.startSession(req, params || {}, function (url) {
+        return res.redirect(url);
+      });
+    });
+    // Listen on server.
     app.listen(port);
     console.error(clc.yellow("To authenticate, visit: http://localhost:" + port + "/"));
   });

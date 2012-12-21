@@ -42,27 +42,24 @@ var manifest = {
   //}
 };
 
-// rem.loadAsync('dropbox.json', '1', function (err, dropbox) {
-// dropbox.prompt(function (err, user) {
-rem.create(manifest, {
-  key: $('#dropbox-key').val(),
-  secret: $('#dropbox-secret').val()
-}).prompt(function (err, user) {
-  user('account/info').get(function (err, json) {
-    $('#account').show()
-    $('#account h2').text('Welcome, ' + json.display_name)
-  });
-
-  user('metadata/sandbox').get(function (err, json) {
-    json.contents.forEach(function (f) {
-      if (f.mime_type == 'audio/mpeg') {
-        user('media/sandbox', f.path).get(function (err, json) {
-          $('#songs').append('<h3>' + f.path + '</h3>')
-          $('#songs').append('<audio src="' + json.url + '" controls>No audio!</audio>')
-        });
-      }
+rem.loadAsync('dropbox.com', 1.0, function (err, api) {
+  api.prompt(function (err, user) {
+    user('account/info').get(function (err, json) {
+      $('#account').show()
+      $('#account h2').text('Welcome, ' + json.display_name)
     });
-  })
+
+    user('metadata/sandbox').get(function (err, json) {
+      json.contents.forEach(function (f) {
+        if (f.mime_type == 'audio/mpeg') {
+          user('media/sandbox', f.path).get(function (err, json) {
+            $('#songs').append('<h3>' + f.path + '</h3>')
+            $('#songs').append('<audio src="' + json.url + '" controls>No audio!</audio>')
+          });
+        }
+      });
+    })
+  });
 });
 
 </script>

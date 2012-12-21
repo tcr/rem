@@ -1,4 +1,4 @@
-{
+json1({
   "1": {
     "name": "Dropbox",
     "docs": "https://www.dropbox.com/developers",
@@ -22,4 +22,4 @@
       "oobVerifier": false
     }
   }
-}
+})

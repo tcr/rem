@@ -77,10 +77,10 @@ var OAuth1API = (function (_super) {
 
   var nodeoauth = require("oauth");
 
-  util.inherits(OAuth1API, rem.Client);
+  util.inherits(OAuth1API, rem.ManifestClient);
 
   function OAuth1API (manifest, options) {
-    rem.Client.apply(this, arguments);
+    rem.ManifestClient.apply(this, arguments);
 
     this.config = this.manifest.auth;
     this.oauth = new nodeoauth.OAuth(this.config.requestEndpoint,
@@ -334,7 +334,7 @@ var OAuth2API = (function (_super) {
     return this._request("DELETE", url, {}, "", accessToken, cb);
   };
 
-  util.inherits(OAuth2API, rem.Client);
+  util.inherits(OAuth2API, rem.ManifestClient);
 
   function OAuth2API(manifest, options) {
     // Constructor.
@@ -371,10 +371,10 @@ var OAuth2API = (function (_super) {
   };
 
   OAuth2API.prototype.validate = function (cb) {
-    if (!this.options.validate) {
+    if (!this.config.validate) {
       throw new Error('Manifest does not define mechanism for validating OAuth.');
     }
-    return this(this.options.validate).get(function (err, data) {
+    return this(this.config.validate).get(function (err, data) {
       return cb(err);
     });
   };
@@ -568,12 +568,34 @@ rem.promptOauth = function () {
   var api = args.shift();
   var params = args.pop(); // optional
 
+  var oauth, port = (params && params.port) || 3000;
+
   api.configure(function () {
-    // Create OAuth server configuration.
-    var app, oauth, port, _ref1;
-    port = (_ref1 = params != null ? params.port : void 0) != null ? _ref1 : 3000;
+    // Authenticated API.
     oauth = rem.oauth(api, "http://localhost:" + port + "/oauth/callback/");
-    app = express.createServer();
+
+    // Check config for cached credentials.
+    var cred = rem.env.config.get(api.manifest.id + ':oauth');
+    if (cred) {
+      return oauth.loadState(cred, function (user) {
+        user.validate(function (validated) {
+          if (validated) {
+            requestCredentials();
+          } else {
+            console.error(clc.yellow("Using credentials stored in " + rem.env.config.stores.file.file));
+            console.error("");
+            cb(null, user);
+          }
+        })
+      });
+    } else {
+      requestCredentials();
+    }
+  });
+
+  function requestCredentials () {
+    // Create OAuth server configuration.
+    var app = express.createServer();
     app.use(express.cookieParser());
     app.use(express.session({
       secret: "!"
@@ -581,20 +603,27 @@ rem.promptOauth = function () {
 
     // OAuth callback.
     app.use(oauth.middleware(function (req, res, next) {
-      res.send("<h1>Oauthenticated.</h1><p>Return to your console, hero!</p><p>To restart authentication, refresh the page.</p>");
-      console.error("");
-      return process.nextTick(function () {
-        return cb(null, req.user);
+      // Save to nconf.
+      req.user.saveState(function (state) {
+        nconf.set(api.manifest.id + ':oauth', state);
+        nconf.save();
+
+        // Respond.
+        res.send("<h1>Oauthenticated.</h1><p>Return to your console, hero!</p><p>To restart authentication, refresh the page.</p>");
+        console.error("");
+        process.nextTick(function () {
+          cb(null, req.user);
+        });
       });
     }));
     // Login page.
     app.get('/', function (req, res) {
-      return oauth.startSession(req, params || {}, function (url) {
-        return res.redirect(url);
+      oauth.startSession(req, params || {}, function (url) {
+        res.redirect(url);
       });
     });
     // Listen on server.
     app.listen(port);
     console.error(clc.yellow("To authenticate, visit: http://localhost:" + port + "/"));
-  });
+  }
 };

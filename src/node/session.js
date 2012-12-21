@@ -10,8 +10,25 @@ var osenv = require('osenv');
 var clc = require('cli-color');
 
 // Namespace.
-var rem = require('./rem');
-var remutil = require('./remutil');
+var rem = require('../rem');
+
+/**
+ * Utilities
+ */
+
+function callable (obj) {
+  var f = function () {
+    return f.invoke.apply(f, arguments);
+  };
+  for (var key in obj) {
+    f[key] = obj[key];
+  }
+  return f;
+};
+
+function clone (obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
 
 /**
  * Cookie authentication.
@@ -19,20 +36,20 @@ var remutil = require('./remutil');
 
 var CookieSessionAPI = (function () {
 
-  util.inherits(CookieSessionAPI, rem.API);
+  util.inherits(CookieSessionAPI, rem.ManifestClient);
 
-  function CookieSessionAPI (manifest, opts) {
-    API.apply(this, arguments);
+  function CookieSessionAPI (options) {
+    rem.ManifestClient.apply(this, arguments);
 
     this.pre('request', function (req, next) {
-      req.headers['cookie'] = this.opts.cookies;
+      req.headers['cookie'] = this.options.cookies;
       next();
-    })
+    });
   }
 
   CookieSessionAPI.prototype.saveState = function (next) {
     return next({
-      cookies: this.opts.cookies
+      cookies: this.options.cookies
     });
   };
 
@@ -42,9 +59,9 @@ var CookieSessionAPI = (function () {
 
 var CookieSessionAuthentication = (function () {
 
-  var toughCookie = require('tough-cookie');
-  var Cookie = toughCookie.Cookie;
-  var CookieJar = toughCookie.CookieJar;
+  var toughCookie = require('tough-cookie'),
+    Cookie = toughCookie.Cookie,
+    CookieJar = toughCookie.CookieJar;
   var querystring = require('querystring');
 
   function CookieSessionAuthentication (api) {
@@ -53,17 +70,16 @@ var CookieSessionAuthentication = (function () {
 
   CookieSessionAuthentication.prototype.authenticate = function (username, password, callback) {
     // Create our request.
-    var req = remutil.request.create('http://www.reddit.com/api/login');
-    req.method = 'POST';
-    req = remutil.request.body(req,
-      'application/x-www-form-urlencoded',
-      querystring.stringify({
-        user: username,
-        passwd: password
-      }));
+    (new rem.Client({
+      uploadFormat: 'form'
+    })).text('http://www.reddit.com/api/login').post({
+      user: username,
+      passwd: password
+    }, function (err, stream, res) {
+      if (err) {
+        callback(err, null);
+      }
 
-    var auth = this;
-    remutil.request.send(req, function (err, res) {
       // Read cookies from headers.
       if (res.headers['set-cookie'] instanceof Array) {
         var cookies = res.headers['set-cookie'].map(Cookie.parse);
@@ -76,26 +92,39 @@ var CookieSessionAuthentication = (function () {
       // Retrieve authentication cookies from request using tough-cookie.
       var jar = new CookieJar();
       async.forEach(cookies.filter(function (cookie) {
-        return (auth.api.manifest.auth.cookies || []).indexOf(cookie.key) != -1;
-      }), function (cookie, next) {
-        jar.setCookie(cookie, remutil.url.format(req.url), next);
+        return (this.api.manifest.auth.cookies || []).indexOf(cookie.key) != -1;
+      }.bind(this)), function (cookie, next) {
+        jar.setCookie(cookie, res.url, next);
       }, function (err) {
         if (err) {
-          callback(err);
+          validateSession(err);
         } else {
-          jar.getCookieString(remutil.url.format(req.url), function (err, cookies) {
-            auth.loadState({cookies: cookies}, callback);
-          })
+          jar.getCookieString(res.url, function (err, cookies) {
+            this.loadState({cookies: cookies}, validateSession);
+          }.bind(this))
         }
-      });
-    });
+      }.bind(this));
+    }.bind(this));
+
+    function validateSession(err, user) {
+      /*
+      TODO
+      if (!err) {
+        user.validate(function (validated) {
+          callback(!validated, user);
+        })
+      } else {
+        callback(err, user);
+      }
+      */
+      callback(err, user);
+    }
   };
 
   CookieSessionAuthentication.prototype.loadState = function (data, cb) {
-    var opts;
-    opts = clone(this.api.opts);
-    opts.cookies = data.cookies;
-    return cb(null, remutil.callable(new CookieSessionAPI(this.api.manifest, opts)));
+    var options = clone(this.api.options);
+    options.cookies = data.cookies;
+    return cb(null, callable(new CookieSessionAPI(this.api.manifest, options)));
   };
 
   return CookieSessionAuthentication;
@@ -108,4 +137,17 @@ var CookieSessionAuthentication = (function () {
 
 rem.session = function (api) {
   return new CookieSessionAuthentication(api);
+};
+
+rem.promptSession = function (api, next) {
+  var read = require('read');
+  var clc = require('cli-color');
+
+  var session = rem.session(api);
+  read({prompt: clc.yellow('Username: ')}, function (err, user) {
+    read({prompt: clc.yellow('Password: '), silent: true}, function (err, password) {
+      console.log('');
+      session.authenticate(user, password, next);
+    });
+  });
 };

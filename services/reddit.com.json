@@ -3,7 +3,7 @@
     "name": "Reddit",
     "docs": "https://github.com/reddit/reddit/wiki/API",
 
-    "base": "http://www.reddit.com",
+    "base": "https://ssl.reddit.com/",
     "uploadFormat": "form",
 
     "formats": {

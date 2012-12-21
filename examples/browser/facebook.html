@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+
+<html>
+  <script src="../../lib/rem.js"></script>
+  <body>
+    <h1>Facebook Demo</h1>
+  </body>
+  <script>
+
+(new rem.Client()).json('http://graph.facebook.com/timcameronryan', {callback: 'json'}).get(function (err, json) {
+  console.log(err, json);
+})
+
+  </script>
+</html>

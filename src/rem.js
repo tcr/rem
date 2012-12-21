@@ -33,7 +33,7 @@ function augment (c, b) {
   return c;
 }
 
-function safeJSONStingify (json) {
+function safeJSONStringify (data) {
   return JSON.stringify(data).replace(/[\u007f-\uffff]/g, function (c) {
     return "\\u" + ("0000" + c.charCodeAt(0).toString(16)).slice(-4);
   });
@@ -157,7 +157,7 @@ rem.parsers = {
       }
       next(data);
     });
-  },
+  }
 };
 
 
@@ -337,13 +337,12 @@ var Client = (function () {
   // Invoke as method.
   function invoke (api, segments, send) {
     var query = typeof segments[segments.length - 1] == 'object' ? segments.pop() : {};
-    var url = ((segments[0] || '').indexOf('//') != -1 ? segments.shift() + (segments.length ? '/' : '') : '')
-      + env.joinPath.apply(null, segments);
+    var url = ((segments[0] || '').indexOf('//') != -1 ? segments.shift() : (segments.length ? '/' : ''))
+      + (segments.length ? env.joinPath.apply(null, segments) : '');
 
     return new Route(Request.create({
       url: env.url.parse(url)
-    // TODO no "uploadFormat"
-    }), api.manifest.uploadFormat, function (req, next) {
+    }), api.options.uploadFormat, function (req, next) {
       api.middleware('request', req, function () {
         // Debug flag.
         if (api.debug) {
@@ -364,7 +363,7 @@ var Client = (function () {
         return invoke(this, Array.prototype.slice.call(arguments), function (req, next) {
           this.send(req, function (err, res) {
             this.middleware('response', req, res, function () {
-              rem.parsers[format](req, function (data) {
+              rem.parsers[format](res, function (data) {
                 next && next.call(this, res.statusCode >= 400 ? res.statusCode : 0, data, res);
               });
             });
@@ -455,6 +454,12 @@ var Client = (function () {
   };
   */
 
+  // Prompt.
+
+  Client.prototype.prompt = function () {
+    return env.prompt.apply(null, [this].concat(Array.prototype.slice.apply(arguments)));
+  };
+
   // Return.
 
   return Client;
@@ -468,6 +473,9 @@ var ManifestClient = (function () {
   env.inherits(ManifestClient, Client);
 
   function ManifestClient (manifest, options) {
+    options = options || {};
+    options.uploadFormat = options.uploadFormat || manifest.uploadFormat;
+
     Client.call(this, options);
     this.manifest = manifest;
 
@@ -539,7 +547,7 @@ var ManifestClient = (function () {
       this.pre('request', function (req, next) {
         var params = this.manifest.configParams;
         for (var key in params) {
-          req.url.query[key] = this.opts[this.manifest.configParams[key]];
+          req.url.query[key] = this.options[this.manifest.configParams[key]];
         }
         next();
       });
@@ -648,9 +656,6 @@ rem.poll = function (endpoint, opts, callback) {
 if (envtype == 'node') {
   // Authentication methods.
   require('./node/oauth');
-  //require('./node/session');
+  require('./node/session');
   //require('./node/aws');
-
-  // TODO more than Oauth.
-  rem.prompt = rem.promptOauth;
 }

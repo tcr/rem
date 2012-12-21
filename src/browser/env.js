@@ -87,13 +87,18 @@ env.url = {
 
   format: function (url) {
     var a = document.createElement('a');
+    a.href = "http://example.com/";
     a.protocol = url.protocol;
     a.auth = url.auth;
     a.hostname = url.hostname;
-    a.port = url.port;
+    if (url.port) {
+      a.port = url.port;
+    }
     a.pathname = url.pathname;
     a.query = env.qs.stringify(url.query);
-    a.hash = url.hash;
+    if (url.hash) {
+      a.hash = url.hash;
+    }
     return a.href;
   }
 };
@@ -145,7 +150,18 @@ function HTTPResponse (url, xhr) {
   }.bind(this);
 }
 
-env.sendRequest = function (opts, next) {
+// Some servers actually have an issue with this.
+function camelCaseHeaders (lower) {
+  var camel = {};
+  for (var key in lower) {
+    camel[key.replace(/(?:^|\b)\w/g, function (match) {
+      return match.toUpperCase();
+    })] = lower[key];
+  }
+  return camel;
+}
+
+env.sendRequest = function (opts, agent, next) {
   // Format url.
   var url = env.url.format(opts.url);
 
@@ -211,3 +227,29 @@ env.lookupManifest = function (name, next) {
 env.isList = function (obj) {
   return Object.prototype.toString.call(obj) === "[object Array]";
 };
+
+// Prompt.
+
+env.prompt = function () {
+  var args = Array.prototype.slice.call(arguments);
+  var api = args.shift(), next = args.pop(), opts = args.pop() || {};
+
+  var key, secret;
+  if (!api.options.key && !store.get('rem:' + api.manifest.id + ':key')) {
+    if (!(key = prompt("API key: "))) {
+      return;
+    }
+    api.options.key = key;
+    store.set('rem:' + api.manifest.id + ':key', key);
+    if (!(secret = prompt("API secret: "))) {
+      return;
+    }
+    api.options.secret = secret;
+    store.set('rem:' + api.manifest.id + ':secret', secret);
+  } else if (!api.options.key) {
+    api.options.key = store.get('rem:' + api.manifest.id + ':key');
+    api.options.secret = store.get('rem:' + api.manifest.id + ':secret');
+  }
+
+  rem.promptOauth(api, opts, next);
+}

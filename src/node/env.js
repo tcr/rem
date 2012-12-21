@@ -31,7 +31,7 @@ env.url = {
       protocol: parsed.protocol || undefined,
       auth: parsed.auth || undefined,
       hostname: parsed.hostname || undefined,
-      port: parsed.port || undefined,
+      port: parsed.port || 0,
       pathname: parsed.pathname || undefined,
       query: parsed.query || {},
       search: parsed.search || undefined,
@@ -84,7 +84,6 @@ env.sendRequest = function (opts, agent, next) {
 
   // Response.
   req.on('response', function (res) {
-    res.on('data', console.log);
     // Attempt to follow Location: headers.
     if (((res.statusCode / 100) | 0) == 3 && res.headers['location'] && opts.redirect !== false) {
       env.request.send(env.request.url(opts, res.headers['location']), agent, next);
@@ -148,18 +147,20 @@ env.lookupManifest = function (name, next) {
 
 // Configuration/prompt
 
-var configFile = null;
 var persistConfig = true;
 
+var path = require('path');
+
+env.config = require('nconf');
+try {
+  env.config.file(path.join(require('osenv').home(), '.remconf'));
+} catch (e) {
+  // Ignore reading errors.
+}
+
 env.configureManifestOptions = function (api, next) {
-  var nconf = require('nconf');
   var read = require('read');
   var clc = require('cli-color');
-  var path = require('path');
-
-  // Configuration.
-  var configFile = configFile || path.join(require('osenv').home(), '.remconf');
-  nconf.file(configFile);
 
   // Optionally prompt for API key/secret.
   if (api.options.key || api.manifest.needsKey === false) {
@@ -167,8 +168,8 @@ env.configureManifestOptions = function (api, next) {
   }
 
   // Load configuration.
-  if (nconf.get(api.manifest.id)) {
-    var config = nconf.get(api.manifest.id);
+  if (env.config.get(api.manifest.id)) {
+    var config = env.config.get(api.manifest.id);
     for (var k in config) {
       api.options[k] = config[k];
     }
@@ -196,12 +197,12 @@ env.configureManifestOptions = function (api, next) {
 
         api.options.secret = secret;
         if (persistConfig) {
-          nconf.set(api.manifest.id + ':key', key);
-          nconf.set(api.manifest.id + ':secret', secret);
-          nconf.save(function (err, json) {
-            console.log(clc.yellow('Your credentials are saved to the configuration file ' + configFile));
+          env.config.set(api.manifest.id + ':key', key);
+          env.config.set(api.manifest.id + ':secret', secret);
+          env.config.save(function (err, json) {
+            console.log(clc.yellow('Your credentials are saved to the configuration file ' + env.config.stores.file.file));
             console.log(clc.yellow('Edit that file to update or change your credentials.\n'));
-            cont();
+            next();
           });
         } else {
           console.log('');
@@ -217,3 +218,17 @@ env.configureManifestOptions = function (api, next) {
 env.isList = function (obj) {
   return Array.isArray(obj) || Buffer.isBuffer(obj);
 }
+
+// Prompting
+
+env.prompt = function (api) {
+  var api = arguments[0];
+  switch (api.manifest.auth && api.manifest.auth.type) {
+    case 'oauth':
+      return rem.promptOauth.apply(rem, arguments);
+    case 'cookies':
+      return rem.promptSession.apply(rem, arguments);
+    default:
+      throw new Error('No support for this authentication type.');
+  }
+};

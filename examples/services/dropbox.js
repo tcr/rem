@@ -1,15 +1,13 @@
 var rem = require('../..');
 
 // Create Dropbox API, prompting for key/secret.
-var dbox = rem.load('dropbox', 1.0).prompt();
-
 // Authenticate user via the console.
-rem.console(dbox, function (err, user) {
+rem.load('dropbox.com', 1.0).prompt(function (err, user) {
 
   // Create a file.
-  user('files_put/sandbox/REM.txt').put(
+  user('files_put/sandbox/rem.txt').put(
     'text/plain',
-    'REM is hiding in your dropcube'
+    'Rem wuz here ' + String(new Date())
   , function(err, json) {
     console.log('PUT file: (error', err, ')');
     console.log(json);

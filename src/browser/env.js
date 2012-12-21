@@ -216,10 +216,12 @@ if (typeof window.DOMParser != "undefined") {
 
 // Lookup
 
-env.lookupManifestSync = null;
+env.lookupManifestSync = function (name, next) {
+  throw new Error('Cannot synchronously load manifests in the browser. Use rem.loadAsync instead.');
+};
 
 env.lookupManifest = function (name, next) {
-  // TODO
+  (new rem.Client()).json('http://www.remlib.org/m/', name).get(next);
 };
 
 // Array/Buffer detection

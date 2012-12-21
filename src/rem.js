@@ -586,9 +586,7 @@ rem.create = function (manifest, opts) {
   return callable(new ManifestClient(manifest, opts));
 };
 
-// TODO Be able to load manifest files locally.
-rem.load = function (name, version, opts) {
-  manifest = env.lookupManifestSync(name);
+function createFromManifest (manifest, name, version, opts) {
   version = version = '*' ? Number(version) || '*' : '*';
   if (!manifest || !manifest[version]) {
     if (version == '*' && manifest) {
@@ -606,6 +604,25 @@ rem.load = function (name, version, opts) {
   manifest.id = name;
   manifest.version = version;
   return rem.create(manifest, opts);
+}
+
+// TODO Be able to load manifest files locally.
+rem.load = function (name, version, opts) {
+  return createFromManifest(env.lookupManifestSync(name), name, version, opts);
+};
+
+rem.loadAsync = function (name, version, opts, next) {
+  if (!next) {
+    next = opts;
+    opts = {};
+  }
+  env.lookupManifest(name, function (err, manifest) {
+    if (err) {
+      next(err);
+    } else {
+      next(null, createFromManifest(manifest, name, version, opts));
+    }
+  })
 };
 
 /**

@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html>
 <body>
-  <h1>REM Dropbox API</h1>
+  <h1>Rem Dropbox Example</h1>
+  <button onclick="store.clear()">Clear Credentials</button>
 
-  <div id="account">
+  <div id="account" style="display: none">
     <h2>Welcome</h2>
   </div>
   <div id="songs"></div>
@@ -14,39 +15,10 @@
 <script src='http://code.jquery.com/jquery.js'></script>
 <script>
 
-$('#account').hide()
-
-var manifest = {
-  //"1": {
-    "name": "Dropbox",
-    "docs": "https://www.dropbox.com/developers",
-    "control": "https://www.dropbox.com/developers/apps",
-
-    "base": [
-      ["^/(files(_put)?|thumbnails)/.*", "https://api-content.dropbox.com/1"],
-      "https://api.dropbox.com/1"
-    ],
-    
-    "jsonp": true,
-
-    "auth": {
-      "type": "oauth",
-      "version": "1.0",
-      "requestEndpoint": "https://api.dropbox.com/1/oauth/request_token",
-      "accessEndpoint": "https://api.dropbox.com/1/oauth/access_token",
-      "authorizeEndpoint": "https://www.dropbox.com/1/oauth/authorize",
-      "validate": "/account/info",
-      "oob": true,
-      "oobVerifier": false
-    }
-  //}
-};
-
 rem.loadAsync('dropbox.com', 1.0, function (err, api) {
   api.prompt(function (err, user) {
     user('account/info').get(function (err, json) {
-      $('#account').show()
-      $('#account h2').text('Welcome, ' + json.display_name)
+      $('#account').show().find('h2').text('Welcome, ' + json.display_name)
     });
 
     user('metadata/sandbox').get(function (err, json) {

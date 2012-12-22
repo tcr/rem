@@ -457,7 +457,7 @@ var Client = (function () {
   // Prompt.
 
   Client.prototype.prompt = function () {
-    return env.prompt.apply(null, [this].concat(Array.prototype.slice.apply(arguments)));
+    return env.prompt.apply(null, [rem, this].concat(Array.prototype.slice.apply(arguments)));
   };
 
   // Return.

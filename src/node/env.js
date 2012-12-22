@@ -150,17 +150,17 @@ env.lookupManifest = function (name, next) {
 var persistConfig = true;
 
 var path = require('path');
+var clc = require('cli-color');
 
 env.config = require('nconf');
 try {
   env.config.file(path.join(require('osenv').home(), '.remconf'));
 } catch (e) {
-  // Ignore reading errors.
+  console.error(clc.yellow('Invalid .remconf settings, overwriting file.'));
 }
 
 env.configureManifestOptions = function (api, next) {
   var read = require('read');
-  var clc = require('cli-color');
 
   // Optionally prompt for API key/secret.
   if (api.options.key || api.manifest.needsKey === false) {
@@ -221,13 +221,13 @@ env.isList = function (obj) {
 
 // Prompting
 
-env.prompt = function (api) {
-  var api = arguments[0];
+env.prompt = function (rem, api) {
+  var args = Array.prototype.slice.call(arguments);
   switch (api.manifest.auth && api.manifest.auth.type) {
     case 'oauth':
-      return rem.promptOauth.apply(rem, arguments);
+      return rem.promptOauth.apply(rem, args.slice(1));
     case 'cookies':
-      return rem.promptSession.apply(rem, arguments);
+      return rem.promptSession.apply(rem, args.slice(1));
     default:
       throw new Error('No support for this authentication type.');
   }

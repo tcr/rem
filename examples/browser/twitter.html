@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <h1>Rem Twitter Example</h1>
+  <button onclick="store.clear()">Clear Credentials</button>
+
+  <div id="account" style="display: none">
+    <h2>Welcome</h2>
+  </div>
+  <div id="songs"></div>
+  </body>
+
+
+<script src="../../lib/rem.js"></script>
+<script src='http://code.jquery.com/jquery.js'></script>
+<script>
+
+rem.loadAsync('twitter.com', 1.0, function (err, api) {
+  api('users/show').get({user_id: 'timcameronryan'}, function (err, json) {
+    console.log(json);
+  });
+});
+
+</script>
+</html>

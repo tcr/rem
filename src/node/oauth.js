@@ -355,14 +355,18 @@ var OAuth2API = (function (_super) {
     this.oauth[req.method.toLowerCase()].apply(this.oauth, args.concat([function (err, data) {
       var stream = new (require('stream')).Stream();
       if (err) {
-        // This is bad API, node-oauth.
+        // node-oauth will send both status code and content in the err object.
         if (typeof err == 'object' && err.statusCode) {
           next(null, stream);
+          stream.statusCode = err.statusCode;
           data = err.data;
         } else {
+          // Assuming a client-side error in this case.
           next(err);
         }
       } else {
+        // Assuming a 200 status code.
+        stream.statusCode = 200;
         next(null, stream);
       }
       stream.emit('data', data);

@@ -290,6 +290,17 @@ var Route = (function () {
     }), next);
   };
 
+  Route.prototype.patch = function (mime, body, next) {
+    if (typeof body == 'function') {
+      next = body;
+      body = mime;
+      mime = this.defaultBodyMime;
+    }
+    return this.callback(Request.update(Request.setBody(this.req, mime, body), {
+      method: 'PATCH'
+    }), next);
+  };
+
   Route.prototype.put = function (mime, body, next) {
     if (typeof body == 'function') {
       next = body;

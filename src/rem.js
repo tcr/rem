@@ -637,6 +637,18 @@ rem.loadAsync = function (name, version, opts, next) {
 };
 
 /**
+ * Default client request methods.
+ */
+
+var defaultClient = (new rem.Client());
+
+Object.keys(rem.parsers).forEach(function (format) {
+  rem[format] = function () {
+    return defaultClient[format].apply(defaultClient, arguments);
+  };
+});
+
+/**
  * Polling
  */
 

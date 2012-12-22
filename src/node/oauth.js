@@ -354,20 +354,23 @@ var OAuth2API = (function (_super) {
     // Fix this sometime when I have the energy.
     this.oauth[req.method.toLowerCase()].apply(this.oauth, args.concat([function (err, data) {
       var stream = new (require('stream')).Stream();
-      if (err) {
-        // node-oauth will send both status code and content in the err object.
-        if (typeof err == 'object' && err.statusCode) {
-          next(null, stream);
-          stream.statusCode = err.statusCode;
-          data = err.data;
-        } else {
-          // Assuming a client-side error in this case.
-          next(err);
-        }
+
+      // node-oauth will send a status code in the error object.
+      if (err && typeof err == 'object' && err.statusCode) {
+        stream.statusCode = err.statusCode;
+        next(null, stream);
+      } else if (typeof err != 'object') {
+        // Assuming a client-side error.
+        next(err);
       } else {
         // Assuming a 200 status code.
         stream.statusCode = 200;
         next(null, stream);
+      }
+
+      // Error objects with node-oauth bundle the content inside.
+      if (err && typeof err == 'object') {
+        data = err.data;
       }
       stream.emit('data', data);
       stream.emit('end');

@@ -147,15 +147,11 @@ var OAuth1Authentication = (function () {
 
   function OAuth1Authentication(api, redirect) {
     this.api = api;
-
-    // Configuration.
     this.config = this.api.manifest.auth;
+    
     // Get redirect URL.
     this.oob = !redirect;
-    if (!(redirect || this.config.oob)) {
-      throw new Error('Out-of-band OAuth for this API is not permitted.');
-    }
-    this.oauthRedirect = redirect || this.config.oobCallback || undefined;
+    this.oauthRedirect = this.oob ? this.config.oobCallback : redirect;
 
     api.pre('configure', function (next) {
       console.error(clc.yellow("Your callback URL should be set to " + this.oauthRedirect + ', or some valid URL.'));
@@ -412,12 +408,10 @@ var OAuth2Authentication = (function () {
   function OAuth2Authentication(api, redirect) {
     this.api = api;
     this.config = this.api.manifest.auth;
+
     // Get redirect URL.
     this.oob = !redirect;
-    if (!(redirect || this.config.oob)) {
-      throw new Error('Out-of-band OAuth for this API is not permitted.');
-    }
-    this.oauthRedirect = redirect || this.config.oobCallback || undefined;
+    this.oauthRedirect = this.oob ? this.config.oobCallback : redirect;
 
     api.pre('configure', function (next) {
       console.error(clc.yellow("Your callback URL should be set to " + this.oauthRedirect + ', or some valid URL.'));
@@ -548,22 +542,27 @@ rem.oauthConsoleOob = function () {
   var api = args.shift();
   var params = args.pop(); // optional
 
-  // Out-of-band authentication.
+  // Check that oob is allowed.
   var oauth = rem.oauth(api);
-  return oauth.start(function (url, token, secret) {
+  if (!api.config.oob) {
+    throw new Error('Out-of-band OAuth for this API is not permitted.');
+  }
+
+  // Out-of-band authentication.
+  oauth.start(function (url, token, secret) {
     console.error(clc.yellow("To authenticate, visit: " + url));
     if (api.manifest.auth.oobVerifier) {
-      return read({
+      read({
         prompt: clc.yellow("Type in the verification code: ")
       }, function (err, verifier) {
-        return oauth.complete(verifier, token, secret, cb);
+        oauth.complete(verifier, token, secret, cb);
       });
     } else {
-      return read({
+      read({
         prompt: clc.yellow("Hit any key to continue...")
       }, function (err) {
         console.error("");
-        return oauth.complete(token, secret, cb);
+        oauth.complete(token, secret, cb);
       });
     }
   });

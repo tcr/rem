@@ -14,7 +14,7 @@ rem.load('github.com', 3.0).prompt({
     user("users", profile.login, "gists").get(function (err, json) {
       if (err) return console.error('Error fetching gists:', err);
 
-      console.log('Your gists:', JSON.stringify(json));
+      console.log('Your gists:');
       json.forEach(function (gist) {
         console.log(' -', gist.description)
       });

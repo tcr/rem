@@ -593,6 +593,7 @@ var ManifestClient = (function () {
 
 })();
 
+
 /**
  * Public API.
  */

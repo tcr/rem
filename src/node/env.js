@@ -195,8 +195,8 @@ env.promptConfiguration = function (rem, api, next) {
 
   // Load configuration.
   if (env.config.get(api.manifest.id)) {
-    var config = env.config.get(api.manifest.id);
-    if (Object.keys(config).length) {
+    var config = env.config.get(api.manifest.id + ':configuration');
+    if (config && Object.keys(config).length) {
       api.manifest.configuration.forEach(function (key) {
         api.options[key] = config[key];
       });
@@ -253,7 +253,7 @@ env.promptConfiguration = function (rem, api, next) {
   function persist () {
     if (persistConfig) {
       api.manifest.configuration.forEach(function (key) {
-        env.config.set(api.manifest.id + ':' + key, api.options[key]);
+        env.config.set(api.manifest.id + ':configuration:' + key, api.options[key]);
       });
       env.config.save(function (err, json) {
         console.log(('Your credentials are saved to the configuration file ' + env.config.stores.file.file).yellow);

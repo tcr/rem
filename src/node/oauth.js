@@ -581,7 +581,7 @@ rem.promptOAuth = function () {
   oauth = rem.oauth(api, "http://localhost:" + port + "/oauth/callback/");
 
   // Check config for cached credentials.
-  var cred = rem.env.config.get(api.manifest.id + ':oauth');
+  var cred = rem.env.config.get(api.manifest.id + ':auth');
   if (cred) {
     return oauth.loadState(cred, function (user) {
       user.validate(function (validated) {
@@ -611,7 +611,7 @@ rem.promptOAuth = function () {
     app.use(oauth.middleware(function (req, res, next) {
       // Save to nconf.
       req.user.saveState(function (state) {
-        rem.env.config.set(api.manifest.id + ':oauth', state);
+        rem.env.config.set(api.manifest.id + ':auth', state);
         rem.env.config.save();
 
         // Respond.

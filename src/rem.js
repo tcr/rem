@@ -465,16 +465,6 @@ var Client = (function () {
     return this;
   };
 
-  // Prompt.
-
-  Client.prototype.prompt = function (opts, next) {
-    if (!next) next = opts, opts = {};
-
-    env.promptConfiguration(rem, this, opts, function () {
-      env.promptAuthentication(rem, this, opts, next);
-    }.bind(this));
-  };
-
   // Return.
 
   return Client;
@@ -495,7 +485,7 @@ var ManifestClient = (function () {
     this.manifest = manifest;
 
     // Default credentials list.
-    this.manifest.credentials = this.manifest.credentials || ['key', 'secret'];
+    this.manifest.configuration = this.manifest.configuration || ['key', 'secret'];
     // Load format-specific options from the manifest.
     if (!this.manifest.formats) {
       this.manifest.formats = {json: {}};
@@ -574,6 +564,30 @@ var ManifestClient = (function () {
       });
     }
   }
+
+  // Prompt.
+
+  ManifestClient.prototype.promptAuthentication = function (opts, next) {
+    if (!next) next = opts, opts = {};
+    env.promptAuthentication(rem, this, opts, next);
+    return this;
+  };
+
+  ManifestClient.prototype.promptConfiguration = function (next) {
+    env.promptConfiguration(rem, this, next);
+    return this;
+  };
+
+  ManifestClient.prototype.prompt = function (opts, next) {
+    if (!next) next = opts, opts = {};
+    this.promptConfiguration(function () {
+      this.promptAuthentication(opts, function () {
+        console.error('');
+        next.apply(this, arguments);
+      });
+    }.bind(this));
+    return this;
+  };
 
   return ManifestClient;
 

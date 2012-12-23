@@ -246,7 +246,7 @@ env.promptString = function (ask, next) {
 
 // Prompt configuration.
 
-env.promptConfiguration = function (rem, api, opts, next) {
+env.promptConfiguration = function (rem, api, next) {
   var key, secret;
   if (!api.options.key && !store.get('rem:' + api.manifest.id + ':key')) {
     if (!(key = prompt("API key: "))) {

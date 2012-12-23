@@ -183,60 +183,88 @@ try {
   console.error('Invalid .remconf settings, overwriting file.'.yellow);
 }
 
-env.promptConfiguration = function (rem, api, opts, next) {
+env.promptConfiguration = function (rem, api, next) {
   var read = require('read');
 
-  // Check for existing key/secret.
-  if (api.options.key) {
+  // Check for existing configuration values.
+  if (api.manifest.configuration.every(function (key) {
+      return key in api.options;
+    })) {
     return next();
   }
 
   // Load configuration.
   if (env.config.get(api.manifest.id)) {
     var config = env.config.get(api.manifest.id);
-    if (config.key) {
-      for (var k in config) {
-        api.options[k] = config[k];
-      }
+    if (Object.keys(config).length) {
+      api.manifest.configuration.forEach(function (key) {
+        api.options[key] = config[key];
+      });
+      console.log(('Loaded API configuration from ' + env.config.stores.file.file).yellow);
       return next();
     }
   }
 
   // Prompt API keys.
-  console.log(('Initializing API keys for ' + api.manifest.id + ' on first use.').yellow);
+  console.log(('Configuring the API ' + api.manifest.id + ' on first use.').yellow);
   if (api.manifest.control) {
-    console.log('Register for an API key here:'.yellow, api.manifest.control);
+    console.log('Register and manage your credentials here:'.yellow, api.manifest.control);
   }
+
+  // Configure, then request key and optionally a secret.
   api.middleware('configure', function () {
+    requestKey(function () {
+      if (api.manifest.configuration.indexOf('secret') > -1) {
+        requestSecret(persist);
+      } else {
+        persist();
+      }
+    })
+  });
+
+  function requestKey (next) {
     read({
       prompt: (api.manifest.id + ' API key: ').yellow
     }, function (err, key) {
       if (!key) {
-        console.error('ERROR:'.red, 'No API key specified, aborting.');
+        console.error('ERROR:'.red, 'No API key entered, aborting.');
         process.exit(1);
       }
 
       api.options.key = key;
-      read({
-        prompt: (api.manifest.id + ' API secret (if provided): ').yellow
-      }, function (err, secret) {
-
-        api.options.secret = secret;
-        if (persistConfig) {
-          env.config.set(api.manifest.id + ':key', key);
-          env.config.set(api.manifest.id + ':secret', secret);
-          env.config.save(function (err, json) {
-            console.log(('Your credentials are saved to the configuration file ' + env.config.stores.file.file).yellow);
-            console.log(('Edit that file to update or change your credentials.\n').yellow);
-            next();
-          });
-        } else {
-          console.log('');
-          next();
-        }
-      });
+      next();
     });
-  });
+  }
+
+  function requestSecret (next) {
+    read({
+      prompt: (api.manifest.id + ' API secret: ').yellow
+    }, function (err, secret) {
+      if (!secret) {
+        console.error('ERROR:'.red, 'No API secret entered, aborting.');
+        process.exit(1);
+      }
+
+      api.options.secret = secret;
+      next();
+    });
+  }
+
+  function persist () {
+    if (persistConfig) {
+      api.manifest.configuration.forEach(function (key) {
+        env.config.set(api.manifest.id + ':' + key, api.options[key]);
+      });
+      env.config.save(function (err, json) {
+        console.log(('Your credentials are saved to the configuration file ' + env.config.stores.file.file).yellow);
+        console.log(('Use "rem config ' + api.manifest.id + '" to manage these values.\n').yellow);
+        next();
+      });
+    } else {
+      console.log('');
+      next();
+    }
+  }
 };
 
 // Prompt authentication.

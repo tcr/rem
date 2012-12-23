@@ -588,8 +588,7 @@ rem.promptOAuth = function () {
         if (!validated) {
           requestCredentials();
         } else {
-          console.error(("Using credentials stored in " + rem.env.config.stores.file.file).yellow);
-          console.error("");
+          console.error(("Loaded API authentication credentials from " + rem.env.config.stores.file.file).yellow);
           cb(null, user);
         }
       })

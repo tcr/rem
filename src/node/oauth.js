@@ -4,7 +4,7 @@ var path = require('path');
 
 var async = require('async');
 var read = require('read');
-var express = require('express');
+var connect = require('connect');
 var nconf = require('nconf');
 var osenv = require('osenv');
 var clc = require('cli-color');
@@ -148,7 +148,7 @@ var OAuth1Authentication = (function () {
   function OAuth1Authentication(api, redirect) {
     this.api = api;
     this.config = this.api.manifest.auth;
-    
+
     // Get redirect URL.
     this.oob = !redirect;
     this.oauthRedirect = this.oob ? this.config.oobCallback : redirect;
@@ -271,7 +271,8 @@ var OAuth1Authentication = (function () {
 
     var auth = this;
     return function (req, res, next) {
-      if (req.path === pathname) {
+      var url = rem.env.url.parse(req.url);
+      if (url.pathname === pathname) {
         if (!auth.oauth) {
           return res.redirect('/');
         }
@@ -601,32 +602,42 @@ rem.promptOauth = function () {
 
   function requestCredentials () {
     // Create OAuth server configuration.
-    var app = express.createServer();
-    app.use(express.cookieParser());
-    app.use(express.session({
-      secret: "!"
-    }));
+    var app = connect();
+
+    app
+      .use(connect.cookieParser())
+      .use(connect.cookieSession({
+        secret: "!"
+      }));
 
     // OAuth callback.
     app.use(oauth.middleware(function (req, res, next) {
       // Save to nconf.
       req.user.saveState(function (state) {
-        nconf.set(api.manifest.id + ':oauth', state);
-        nconf.save();
+        rem.env.config.set(api.manifest.id + ':oauth', state);
+        rem.env.config.save();
 
         // Respond.
-        res.send("<h1>Oauthenticated.</h1><p>Return to your console, hero!</p><p>To restart authentication, refresh the page.</p>");
+        res.end("<h1>Oauthenticated.</h1><p>Return to your console, hero!</p><p>To restart authentication, refresh the page.</p>");
         console.error("");
         process.nextTick(function () {
           cb(null, req.user);
         });
       });
     }));
+
     // Login page.
-    app.get('/', function (req, res) {
-      oauth.startSession(req, params || {}, function (url) {
-        res.redirect(url);
-      });
+    app.use(function (req, res, next) {
+      if (req.url == '/') {
+        oauth.startSession(req, params || {}, function (url) {
+          res.writeHead(302, {
+            'Location': url
+          });
+          res.end();
+        });
+      } else {
+        next();
+      }
     });
     // Listen on server.
     app.listen(port);

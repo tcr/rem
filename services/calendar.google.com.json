@@ -1,5 +1,6 @@
 {
   "3": {
+    "id": "calendar.google.com",
     "name": "Google Calendar",
     "docs": "https://developers.google.com/google-apps/calendar/",
     "control": "https://code.google.com/apis/console/",

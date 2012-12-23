@@ -1,5 +1,6 @@
 {
   "1": {
+    "id": "twitter.com",
     "name": "Twitter",
     "docs": "https://dev.twitter.com/docs",
     "control": "https://dev.twitter.com/apps",
@@ -8,7 +9,7 @@
       ["^/search", "https://search.twitter.com"],
       ["^/statuses/(sample|filter|firehose)", "https://stream.twitter.com/1"],
       ["^/user$", "https://userstream.twitter.com/1"],
-      "https://api.twitter.com/1"
+      ["", "https://api.twitter.com/1"]
     ],
 
     "formats": {
@@ -38,7 +39,7 @@
       ["^/search", "https://search.twitter.com"],
       ["^/statuses/(sample|filter|firehose)", "https://stream.twitter.com/1.1"],
       ["^/user$", "https://userstream.twitter.com/1.1"],
-      "https://api.twitter.com/1.1"
+      ["", "https://api.twitter.com/1.1"]
     ],
 
     "formats": {

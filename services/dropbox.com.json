@@ -1,12 +1,13 @@
 {
   "1": {
+    "id": "dropbox.com",
     "name": "Dropbox",
     "docs": "https://www.dropbox.com/developers",
     "control": "https://www.dropbox.com/developers/apps",
 
     "base": [
       ["^/(files(_put)?|thumbnails)/.*", "https://api-content.dropbox.com/1"],
-      "https://api.dropbox.com/1"
+      ["", "https://api.dropbox.com/1"]
     ],
     
     "jsonp": true,

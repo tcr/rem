@@ -1,5 +1,6 @@
 {
   "1": {
+    "id": "duckduckgo.com",
     "name": "Duck Duck Go",
 
     "base": "https://api.duckduckgo.com",

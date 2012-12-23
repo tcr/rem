@@ -4,7 +4,6 @@ var path = require('path');
 
 var async = require('async');
 var read = require('read');
-var express = require('express');
 var nconf = require('nconf');
 var osenv = require('osenv');
 var clc = require('cli-color');

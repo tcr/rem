@@ -1,5 +1,6 @@
 {
   "1": {
+    "id": "facebook.com",
     "name": "Facebook",
     "docs": "https://developers.facebook.com/docs/reference/api/",
     "control": "https://developers.facebook.com/apps",

@@ -1,5 +1,6 @@
 {
   "3": {
+    "id": "docs.google.com",
     "name": "Google Docs",
     "control": "https://code.google.com/apis/console/",
 

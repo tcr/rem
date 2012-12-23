@@ -323,12 +323,31 @@ var OAuth2API = (function (_super) {
     }, body, accessToken, cb);
   };
   nodeoauth.OAuth2.prototype.put = function (url, accessToken, body, mime, cb) {
-    return this._request("PUT", url, {
+    // node-oauth expects a method of "POST" for a body.
+    // This is a terrible, terrible temporary hack.
+    var method = {
+      toString: function () { return 'PUT'; },
+      valueOf: function () { return 'POST'; },
+      toUpperCase: function () { return method; }
+    };
+    return this._request(method, url, {
       "content-type": mime
     }, body, accessToken, cb);
   };
-  nodeoauth.OAuth2.prototype["delete"] = function (url, accessToken, body, mime, cb) {
+  nodeoauth.OAuth2.prototype['delete'] = function (url, accessToken, body, mime, cb) {
     return this._request("DELETE", url, {}, "", accessToken, cb);
+  };
+  nodeoauth.OAuth2.prototype['patch'] = function (url, accessToken, body, mime, cb) {
+    // node-oauth expects a method of "POST" for a body.
+    // This is a terrible, terrible temporary hack.
+    var method = {
+      toString: function () { return 'PATCH'; },
+      valueOf: function () { return 'POST'; },
+      toUpperCase: function () { return method; }
+    };
+    return this._request(method, url, {
+      "content-type": mime
+    }, body, accessToken, cb);
   };
 
   util.inherits(OAuth2API, rem.ManifestClient);
@@ -343,7 +362,7 @@ var OAuth2API = (function (_super) {
   OAuth2API.prototype.send = function (req, next) {
     // OAuth request.
     var args = [rem.env.url.format(req.url), this.options.oauthAccessToken];
-    if (req.method === 'PUT' || req.method === 'POST') {
+    if (req.method === 'PUT' || req.method === 'POST' || req.method == 'PATCH') {
       args.push(String(req.body), req.headers['content-type']);
     }
 

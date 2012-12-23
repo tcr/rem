@@ -507,15 +507,9 @@ var ManifestClient = (function () {
       if (env.isList(this.manifest.base)) {
         var base = '';
         this.manifest.base.some(function (tuple) {
-          if (typeof tuple == 'string') {
-            // TODO this functionality should be removed
-            base = tuple;
+          if (pathname.match(new RegExp(tuple[0]))) {
+            base = tuple[1];
             return true;
-          } else {
-            if (pathname.match(new RegExp(tuple[0]))) {
-              base = tuple[1];
-              return true;
-            }
           }
         });
       } else {

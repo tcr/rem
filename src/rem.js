@@ -142,7 +142,8 @@ rem.parsers = {
       try {
         data = JSON.parse(String(data));
       } catch (e) {
-        console.error('Could not parse JSON.', e)
+        console.error('Invalid JSON:', data);
+        throw e;
       }
       next(data);
     });
@@ -153,7 +154,8 @@ rem.parsers = {
       try {
         env.parseXML(res, next);
       } catch (e) {
-        console.error('Could not parse XML.', e)
+        console.error('Invalid XML:', data);
+        throw e;
       }
       next(data);
     });
@@ -383,15 +385,11 @@ var Client = (function () {
   Client.prototype.call = function () {
     return invoke(this, Array.prototype.slice.call(arguments), function (req, next) {
       this.send(req, function (err, res) {
-        if (err) {
-          next && next(err, null, res);
-        } else {
-          this.middleware('response', req, res, function () {
-            this.parseStream(req, res, function (data) {
-              next && next.call(this, res.statusCode >= 400 ? res.statusCode : 0, data, res);
-            }.bind(this));
+        this.middleware('response', req, res, function () {
+          this.parseStream(req, res, function (data) {
+            next && next.call(this, res.statusCode >= 400 ? res.statusCode : 0, data, res);
           }.bind(this));
-        }
+        }.bind(this));
       }.bind(this));
     }.bind(this));
   };

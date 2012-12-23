@@ -86,7 +86,8 @@ env.sendRequest = function (opts, agent, next) {
   req.on('response', function (res) {
     // Attempt to follow Location: headers.
     if (((res.statusCode / 100) | 0) == 3 && res.headers['location'] && opts.redirect !== false) {
-      env.request.send(env.request.url(opts, res.headers['location']), agent, next);
+      opts.url = env.url.parse(res.headers['location']);
+      env.sendRequest(opts, agent, next);
     } else {
       res.url = env.url.format(opts.url); // Populate res.url property
       next && next(null, res);

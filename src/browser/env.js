@@ -170,7 +170,7 @@ env.sendRequest = function (opts, agent, next) {
   req.onreadystatechange = function () {
     if (req.readyState == 2) {
       var res = new HTTPResponse(url, req);
-      next(((req.statusCode / 100) | 0) != 2 && req.statusCode, res);
+      next(null, res);
     }
   }
 

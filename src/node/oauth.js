@@ -132,8 +132,8 @@ var OAuth1API = (function (_super) {
     if (!this.config.validate) {
       throw new Error('Manifest does not define mechanism for validating OAuth.');
     }
-    return this(this.config.validate).get(function (err, data) {
-      return next(err);
+    this(this.config.validate).get(function (err, data) {
+      next(!err);
     });
   };
 
@@ -374,12 +374,12 @@ var OAuth2API = (function (_super) {
     }]));
   };
 
-  OAuth2API.prototype.validate = function (cb) {
+  OAuth2API.prototype.validate = function (next) {
     if (!this.config.validate) {
       throw new Error('Manifest does not define mechanism for validating OAuth.');
     }
-    return this(this.config.validate).get(function (err, data) {
-      return cb(err);
+    this(this.config.validate).get(function (err, data) {
+      next(!err);
     });
   };
 
@@ -585,7 +585,7 @@ rem.promptOAuth = function () {
   if (cred) {
     return oauth.loadState(cred, function (user) {
       user.validate(function (validated) {
-        if (validated) {
+        if (!validated) {
           requestCredentials();
         } else {
           console.error(("Using credentials stored in " + rem.env.config.stores.file.file).yellow);

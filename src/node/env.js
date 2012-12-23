@@ -129,8 +129,14 @@ var path = require('path');
 
 var MANIFEST_PATH = path.join(__dirname, '../../services');
 
+function getInvokingPath (levels) {
+  return (new Error()).stack.split('\n')[1 + levels].replace(/^.*?\(|:\d+:\d+\).*?$/g, '');
+}
+
 env.lookupManifestSync = function (name) {
-  var file = name.match(/^\./) ? path : path.join(MANIFEST_PATH, path.join('/', name));
+  var file = name.match(/^\./)
+    ? path.join(path.dirname(getInvokingPath(3)), name)
+    : path.join(MANIFEST_PATH, path.join('/', name));
   try {
     return JSON.parse(fs.readFileSync(file, 'utf-8'));
   } catch (e) {
@@ -139,7 +145,9 @@ env.lookupManifestSync = function (name) {
 };
 
 env.lookupManifest = function (name, next) {
-  var file = name.match(/^\./) ? path : path.join(MANIFEST_PATH, path.join('/', name));
+  var file = name.match(/^\./)
+    ? path.join(path.dirname(getInvokingPath(3)), name)
+    : path.join(MANIFEST_PATH, path.join('/', name));
   fs.readFile(file, 'utf-8', function (err, data) {
     try {
       next(err, !err && JSON.parse(data));

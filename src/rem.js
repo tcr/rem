@@ -593,41 +593,40 @@ rem.create = function (manifest, opts) {
   return callable(new ManifestClient(manifest, opts));
 };
 
-function createFromManifest (manifest, name, version, opts) {
+function createFromManifest (manifest, path, version, opts) {
   version = version = '*' ? Number(version) || '*' : '*';
   if (!manifest || !manifest[version]) {
     if (version == '*' && manifest) {
       var version = Object.keys(manifest).sort().pop();
       if (!manifest[version]) {
-        throw new Error('Unable to find API ' + JSON.stringify(name) + ' version ' + JSON.stringify(Number(version)) + '. For the latest API, use "*".');
+        throw new Error('Unable to find API ' + JSON.stringify(path) + ' version ' + JSON.stringify(Number(version)) + '. For the latest API, use "*".');
       }
     } else if (manifest) {
-      throw new Error('Unable to find API ' + JSON.stringify(name) + ' version ' + JSON.stringify(Number(version)) + '. For the latest API, use "*".');
+      throw new Error('Unable to find API ' + JSON.stringify(path) + ' version ' + JSON.stringify(Number(version)) + '. For the latest API, use "*".');
     } else {
-      throw new Error('Unable to find API ' + JSON.stringify(name) + '.');
+      throw new Error('Unable to find API ' + JSON.stringify(path) + '.');
     }
   }
   manifest = manifest[version];
-  manifest.id = name;
   manifest.version = version;
   return rem.create(manifest, opts);
 }
 
 // TODO Be able to load manifest files locally.
-rem.load = function (name, version, opts) {
-  return createFromManifest(env.lookupManifestSync(name), name, version, opts);
+rem.load = function (path, version, opts) {
+  return createFromManifest(env.lookupManifestSync(path), path, version, opts);
 };
 
-rem.loadAsync = function (name, version, opts, next) {
+rem.loadAsync = function (path, version, opts, next) {
   if (!next) {
     next = opts;
     opts = {};
   }
-  env.lookupManifest(name, function (err, manifest) {
+  env.lookupManifest(path, function (err, manifest) {
     if (err) {
       next(err);
     } else {
-      next(null, createFromManifest(manifest, name, version, opts));
+      next(null, createFromManifest(manifest, path, version, opts));
     }
   })
 };

@@ -7,8 +7,8 @@ var read = require('read');
 var connect = require('connect');
 var nconf = require('nconf');
 var osenv = require('osenv');
-var clc = require('cli-color');
 var querystring = require('querystring');
+require('colors');
 
 // Namespace.
 var rem = require('../rem');
@@ -154,7 +154,7 @@ var OAuth1Authentication = (function () {
     this.oauthRedirect = this.oob ? this.config.oobCallback : redirect;
 
     api.pre('configure', function (next) {
-      console.error(clc.yellow("Your callback URL should be set to " + this.oauthRedirect + ', or some valid URL.'));
+      console.error(("Your callback URL should be set to " + this.oauthRedirect + ', or some valid URL.').yellow);
       next();
     }.bind(this));
   }
@@ -415,7 +415,7 @@ var OAuth2Authentication = (function () {
     this.oauthRedirect = this.oob ? this.config.oobCallback : redirect;
 
     api.pre('configure', function (next) {
-      console.error(clc.yellow("Your callback URL should be set to " + this.oauthRedirect + ', or some valid URL.'));
+      console.error(("Your callback URL should be set to " + this.oauthRedirect + ', or some valid URL.').yellow);
       next();
     }.bind(this));
   }
@@ -551,16 +551,16 @@ rem.oauthConsoleOob = function () {
 
   // Out-of-band authentication.
   oauth.start(function (url, token, secret) {
-    console.error(clc.yellow("To authenticate, visit: " + url));
+    console.error(("To authenticate, visit: " + url).yellow);
     if (api.manifest.auth.oobVerifier) {
       read({
-        prompt: clc.yellow("Type in the verification code: ")
+        prompt: ("Type in the verification code: ").yellow
       }, function (err, verifier) {
         oauth.complete(verifier, token, secret, cb);
       });
     } else {
       read({
-        prompt: clc.yellow("Hit any key to continue...")
+        prompt: ("Hit any key to continue...").yellow
       }, function (err) {
         console.error("");
         oauth.complete(token, secret, cb);
@@ -588,7 +588,7 @@ rem.promptOauth = function () {
         if (validated) {
           requestCredentials();
         } else {
-          console.error(clc.yellow("Using credentials stored in " + rem.env.config.stores.file.file));
+          console.error(("Using credentials stored in " + rem.env.config.stores.file.file).yellow);
           console.error("");
           cb(null, user);
         }
@@ -639,6 +639,6 @@ rem.promptOauth = function () {
     });
     // Listen on server.
     app.listen(port);
-    console.error(clc.yellow("To authenticate, visit: http://localhost:" + port + "/"));
+    console.error(("To authenticate, visit: http://localhost:" + port + "/").yellow);
   }
 };

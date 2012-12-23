@@ -6,7 +6,6 @@ var async = require('async');
 var read = require('read');
 var nconf = require('nconf');
 var osenv = require('osenv');
-var clc = require('cli-color');
 
 // Namespace.
 var rem = require('../rem');
@@ -140,11 +139,11 @@ rem.session = function (api) {
 
 rem.promptSession = function (api, next) {
   var read = require('read');
-  var clc = require('cli-color');
+  require('colors');
 
   var session = rem.session(api);
-  read({prompt: clc.yellow('Username: ')}, function (err, user) {
-    read({prompt: clc.yellow('Password: '), silent: true}, function (err, password) {
+  read({prompt: ('Username: ').yellow}, function (err, user) {
+    read({prompt: ('Password: ').yellow, silent: true}, function (err, password) {
       console.log('');
       session.authenticate(user, password, next);
     });

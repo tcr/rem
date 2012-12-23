@@ -490,6 +490,8 @@ var ManifestClient = (function () {
     Client.call(this, options);
     this.manifest = manifest;
 
+    // Default credentials list.
+    this.manifest.credentials = this.manifest.credentials || ['key', 'secret'];
     // Load format-specific options from the manifest.
     if (!this.manifest.formats) {
       this.manifest.formats = {json: {}};

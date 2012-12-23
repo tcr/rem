@@ -162,49 +162,51 @@ env.promptString = function (ask, next) {
 var persistConfig = true;
 
 var path = require('path');
-var clc = require('cli-color');
+require('colors');
 
 env.config = require('nconf');
 try {
   env.config.file(path.join(require('osenv').home(), '.remconf'));
 } catch (e) {
-  console.error(clc.yellow('Invalid .remconf settings, overwriting file.'));
+  console.error('Invalid .remconf settings, overwriting file.'.yellow);
 }
 
 env.promptConfiguration = function (rem, api, opts, next) {
   var read = require('read');
 
-  // Optionally prompt for API key/secret.
-  if (api.options.key || api.manifest.needsKey === false) {
+  // Check for existing key/secret.
+  if (api.options.key) {
     return next();
   }
 
   // Load configuration.
   if (env.config.get(api.manifest.id)) {
     var config = env.config.get(api.manifest.id);
-    for (var k in config) {
-      api.options[k] = config[k];
+    if (config.key) {
+      for (var k in config) {
+        api.options[k] = config[k];
+      }
+      return next();
     }
-    return next();
   }
 
   // Prompt API keys.
-  console.log(clc.yellow('Initializing API keys for ' + api.manifest.id + ' on first use.'));
+  console.log(('Initializing API keys for ' + api.manifest.id + ' on first use.').yellow);
   if (api.manifest.control) {
-    console.log(clc.yellow('Register for an API key here:'), api.manifest.control);
+    console.log('Register for an API key here:'.yellow, api.manifest.control);
   }
   api.middleware('configure', function () {
     read({
-      prompt: clc.yellow(api.manifest.id + ' API key: ')
+      prompt: (api.manifest.id + ' API key: ').yellow
     }, function (err, key) {
       if (!key) {
-        console.error(clc.red('ERROR:'), 'No API key specified, aborting.');
+        console.error('ERROR:'.red, 'No API key specified, aborting.');
         process.exit(1);
       }
 
       api.options.key = key;
       read({
-        prompt: clc.yellow(api.manifest.id + ' API secret (if provided): ')
+        prompt: (api.manifest.id + ' API secret (if provided): ').yellow
       }, function (err, secret) {
 
         api.options.secret = secret;
@@ -212,8 +214,8 @@ env.promptConfiguration = function (rem, api, opts, next) {
           env.config.set(api.manifest.id + ':key', key);
           env.config.set(api.manifest.id + ':secret', secret);
           env.config.save(function (err, json) {
-            console.log(clc.yellow('Your credentials are saved to the configuration file ' + env.config.stores.file.file));
-            console.log(clc.yellow('Edit that file to update or change your credentials.\n'));
+            console.log(('Your credentials are saved to the configuration file ' + env.config.stores.file.file).yellow);
+            console.log(('Edit that file to update or change your credentials.\n').yellow);
             next();
           });
         } else {

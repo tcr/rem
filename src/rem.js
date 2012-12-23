@@ -398,7 +398,7 @@ var Client = (function () {
     rem.parsers[this.options.format](res, next);
   };
 
-  Client.prototype.send = function (req, next) {
+  Client.prototype._send = function (req, next) {
     env.sendRequest(req, this.agent, next);
   };
 
@@ -436,28 +436,34 @@ var Client = (function () {
 
   // Throttling.
 
-  /*
   Client.prototype.throttle = function (rate) {
-    var api = this, queue = [], rate = rate || 1;
+    // Unthrottle with api.throttle(null)
+    if (rate == null) {
+      this.send = this._send || this.send;
+      return this;
+    }
 
+    var queue = [];
     setInterval(function () {
       var fn = queue.shift();
       if (fn) {
         fn();
       }
-    }, 1000/rate)
+    }, 1000 / rate)
 
-    var oldsend = api.send;
-    api.send = function () {
+    // Replace send function.
+    if (!this._send) {
+      this._send = this.send;
+    }
+    this.send = function () {
       var args = arguments;
       queue.push(function () {
-        oldsend.apply(api, args);
-      });
+        this._send.apply(this, args);
+      }.bind(this));
     };
 
-    return api;
+    return this;
   };
-  */
 
   // Prompt.
 

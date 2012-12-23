@@ -163,7 +163,7 @@ rem.oauth = function (api, callback) {
   return new OAuth1Authentication(api, callback);
 };
 
-rem.promptOauth = function () {
+rem.promptOAuth = function () {
   var args = Array.prototype.slice.call(arguments);
   var next = args.pop(), api = args.shift(), params = args.pop() || null;
 

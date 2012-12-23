@@ -569,7 +569,7 @@ rem.oauthConsoleOob = function () {
   });
 };
 
-rem.promptOauth = function () {
+rem.promptOAuth = function () {
   var args = Array.prototype.slice.call(arguments);
   var cb = args.pop();
   var api = args.shift();

@@ -124,24 +124,27 @@ env.parseXML = function (data, next) {
 
 // Lookup
 
+var fs = require('fs');
+var path = require('path');
+
+var MANIFEST_PATH = path.join(__dirname, '../../services');
+
 env.lookupManifestSync = function (name) {
-  var fs = require('fs');
-  var path = require('path');
+  var file = name.match(/^\./) ? path : path.join(MANIFEST_PATH, path.join('/', name));
   try {
-    return JSON.parse(fs.readFileSync(path.join(__dirname, '../../services', name + '.json')));
+    return JSON.parse(fs.readFileSync(file, 'utf-8'));
   } catch (e) {
     return null;
   }
 };
 
 env.lookupManifest = function (name, next) {
-  var fs = require('fs');
-  var path = require('path');
-  fs.readFile(path.join(__dirname, '../../services', name + '.json'), function (err, data) {
+  var file = name.match(/^\./) ? path : path.join(MANIFEST_PATH, path.join('/', name));
+  fs.readFile(file, 'utf-8', function (err, data) {
     try {
-      next(err, !err && JSON.parse(String(data)));
+      next(err, !err && JSON.parse(data));
     } catch (e) {
-      next(e);
+      next(e, null);
     }
   });
 };
@@ -234,7 +237,7 @@ env.promptAuthentication = function (rem, api, opts, next) {
   var args = Array.prototype.slice.call(arguments);
   switch (api.manifest.auth && api.manifest.auth.type) {
     case 'oauth':
-      return rem.promptOauth.call(rem, api, opts, next);
+      return rem.promptOAuth.call(rem, api, opts, next);
     case 'cookies':
       return rem.promptSession.call(rem, api, opts, next);
     default:

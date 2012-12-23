@@ -216,12 +216,15 @@ if (typeof window.DOMParser != "undefined") {
 
 // Lookup
 
+var MANIFEST_PATH = 'http://www.remlib.org/m/'
+
 env.lookupManifestSync = function (name, next) {
   throw new Error('Cannot synchronously load manifests in the browser. Use rem.loadAsync instead.');
 };
 
 env.lookupManifest = function (name, next) {
-  (new rem.Client()).json('http://www.remlib.org/m/', name).get(next);
+  var file = name.match(/^\.\/|\/\//) ? name : MANIFEST_PATH + env.joinPath(name).replace(/^\//, '');
+  (new rem.Client()).json(file).get(next);
 };
 
 // Array/Buffer detection
@@ -263,5 +266,5 @@ env.promptConfiguration = function (rem, api, opts, next) {
 };
 
 env.promptAuthentication = function (rem, api, opts, next) {
-  rem.promptOauth(api, opts, next);
+  rem.promptOAuth(api, opts, next);
 };

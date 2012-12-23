@@ -398,7 +398,7 @@ var Client = (function () {
     rem.parsers[this.options.format](res, next);
   };
 
-  Client.prototype._send = function (req, next) {
+  Client.prototype.send = function (req, next) {
     env.sendRequest(req, this.agent, next);
   };
 

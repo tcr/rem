@@ -341,10 +341,6 @@ var Client = (function () {
 
   // Configuration prompt.
 
-  Client.prototype.configure = function (next) {
-    return cont();
-  };
-
   // Invoke as method.
   function invoke (api, segments, send) {
     var query = typeof segments[segments.length - 1] == 'object' ? segments.pop() : {};
@@ -467,8 +463,12 @@ var Client = (function () {
 
   // Prompt.
 
-  Client.prototype.prompt = function () {
-    return env.prompt.apply(null, [rem, this].concat(Array.prototype.slice.apply(arguments)));
+  Client.prototype.prompt = function (opts, next) {
+    if (!next) next = opts, opts = {};
+
+    env.promptConfiguration(rem, this, opts, function () {
+      env.promptAuthentication(rem, this, opts, next);
+    }.bind(this));
   };
 
   // Return.
@@ -567,10 +567,6 @@ var ManifestClient = (function () {
         next();
       });
     }
-
-    this.configure = function (next) {
-      return env.configureManifestOptions(this, next);
-    };
   }
 
   return ManifestClient;

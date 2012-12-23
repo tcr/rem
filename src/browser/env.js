@@ -230,12 +230,18 @@ env.isList = function (obj) {
   return Object.prototype.toString.call(obj) === "[object Array]";
 };
 
-// Prompt.
+// Prompt strings.
 
-env.prompt = function () {
-  var args = Array.prototype.slice.call(arguments);
-  var api = args.shift(), next = args.pop(), opts = args.pop() || {};
+env.promptString = function (ask, next) {
+  var val = prompt(ask);
+  setTimeout(function () {
+    next(val === null, val);
+  });
+};
 
+// Prompt configuration.
+
+env.promptConfiguration = function (rem, api, opts, next) {
   var key, secret;
   if (!api.options.key && !store.get('rem:' + api.manifest.id + ':key')) {
     if (!(key = prompt("API key: "))) {
@@ -253,5 +259,9 @@ env.prompt = function () {
     api.options.secret = store.get('rem:' + api.manifest.id + ':secret');
   }
 
+  next(api);
+};
+
+env.promptAuthentication = function (rem, api, opts, next) {
   rem.promptOauth(api, opts, next);
-}
+};

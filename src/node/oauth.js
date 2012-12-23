@@ -576,29 +576,27 @@ rem.promptOauth = function () {
   var params = args.pop(); // optional
 
   var oauth, port = (params && params.port) || 3000;
+    
+  // Authenticated API.
+  oauth = rem.oauth(api, "http://localhost:" + port + "/oauth/callback/");
 
-  api.configure(function () {
-    // Authenticated API.
-    oauth = rem.oauth(api, "http://localhost:" + port + "/oauth/callback/");
-
-    // Check config for cached credentials.
-    var cred = rem.env.config.get(api.manifest.id + ':oauth');
-    if (cred) {
-      return oauth.loadState(cred, function (user) {
-        user.validate(function (validated) {
-          if (validated) {
-            requestCredentials();
-          } else {
-            console.error(clc.yellow("Using credentials stored in " + rem.env.config.stores.file.file));
-            console.error("");
-            cb(null, user);
-          }
-        })
-      });
-    } else {
-      requestCredentials();
-    }
-  });
+  // Check config for cached credentials.
+  var cred = rem.env.config.get(api.manifest.id + ':oauth');
+  if (cred) {
+    return oauth.loadState(cred, function (user) {
+      user.validate(function (validated) {
+        if (validated) {
+          requestCredentials();
+        } else {
+          console.error(clc.yellow("Using credentials stored in " + rem.env.config.stores.file.file));
+          console.error("");
+          cb(null, user);
+        }
+      })
+    });
+  } else {
+    requestCredentials();
+  }
 
   function requestCredentials () {
     // Create OAuth server configuration.

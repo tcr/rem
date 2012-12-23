@@ -145,7 +145,19 @@ env.lookupManifest = function (name, next) {
   });
 };
 
-// Configuration/prompt
+// Array/Buffer detection
+
+env.isList = function (obj) {
+  return Array.isArray(obj) || Buffer.isBuffer(obj);
+}
+
+// Prompt strings.
+
+env.promptString = function (ask, next) {
+  read({prompt: ask}, next);
+};
+
+// Prompt configuration.
 
 var persistConfig = true;
 
@@ -159,7 +171,7 @@ try {
   console.error(clc.yellow('Invalid .remconf settings, overwriting file.'));
 }
 
-env.configureManifestOptions = function (api, next) {
+env.promptConfiguration = function (rem, api, opts, next) {
   var read = require('read');
 
   // Optionally prompt for API key/secret.
@@ -211,23 +223,17 @@ env.configureManifestOptions = function (api, next) {
       });
     });
   });
-}
+};
 
-// Array/Buffer detection
+// Prompt authentication.
 
-env.isList = function (obj) {
-  return Array.isArray(obj) || Buffer.isBuffer(obj);
-}
-
-// Prompting
-
-env.prompt = function (rem, api) {
+env.promptAuthentication = function (rem, api, opts, next) {
   var args = Array.prototype.slice.call(arguments);
   switch (api.manifest.auth && api.manifest.auth.type) {
     case 'oauth':
-      return rem.promptOauth.apply(rem, args.slice(1));
+      return rem.promptOauth.call(rem, api, opts, next);
     case 'cookies':
-      return rem.promptSession.apply(rem, args.slice(1));
+      return rem.promptSession.call(rem, api, opts, next);
     default:
       throw new Error('No support for this authentication type.');
   }

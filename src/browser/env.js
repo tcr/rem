@@ -185,6 +185,8 @@ env.sendRequest = function (opts, agent, next) {
     }
   }
   req.send(opts.body);
+
+  return req;
 };
 
 // Path

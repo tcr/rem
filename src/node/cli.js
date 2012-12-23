@@ -3,7 +3,7 @@
 var fs = require('fs')
   , path = require('path');
 
-var rem = require('rem')
+var rem = require('../..')
   , open = require('open');
 
 function dumpObject (obj, prefix) {
@@ -19,85 +19,81 @@ function dumpObject (obj, prefix) {
 
 (function () {
 	if (process.argv.length > 2) {
-		switch (process.argv[2]) {
-			case 'ls':
-				console.log('APIs:')
-				fs.readdirSync(path.join(__dirname, '../builtin')).forEach(function (api) {
-					console.log('  ' + api.replace(/\..*$/, ''));
-				})
-				return;
+		var domain = process.argv[2];
 
+		if (domain == '--list') {
+			console.log('Loaded APIs:')
+			fs.readdirSync(path.join(__dirname, '../../services')).filter(function (api) {
+				return !api.match(/^\.|\.json$/g);
+			}).forEach(function (api) {
+				console.log('  ' + api);
+			})
+			return;
+		}
+
+		if (process.argv.length == 3) {
+			var api = rem.load(domain, '*');
+			var info = {};
+			['id', 'name', 'docs', 'control'].forEach(function (key) {
+				if (api.manifest[key]) {
+					info[key] = api.manifest[key];
+				}
+			})
+			dumpObject(info);
+			return;
+		}
+
+		switch (process.argv[3]) {
 			case 'config':
-				switch (process.argv[3]) {
-					case 'delete':
-						rem.env.config.clear(process.argv[4] + ':key');
-						rem.env.config.clear(process.argv[4] + ':secret');
+				switch (process.argv[4]) {
+					case 'clear':
+						rem.env.config.clear(domain + ':configuration');
 						rem.env.config.save(function (err) {
 							console.error('Configuration cleared.');
 						});
 						return;
 
-					case 'info':
-						console.log('Auth credentials:')
-						console.log('  key =>', rem.env.config.get(process.argv[4] + ':key'));
-						console.log('  secret =>', rem.env.config.get(process.argv[4] + ':secret'));
+					default:
+						console.log('Stored API configuration:')
+						dumpObject(rem.env.config.get(domain + ':configuration'));
 						return;
 				}
 				break;
 
 			case 'auth':
-				switch (process.argv[3]) {
-					case 'delete':
-						rem.env.config.clear(process.argv[4] + ':oauth');
+				switch (process.argv[4]) {
+					case 'clear':
+						rem.env.config.clear(domain + ':auth');
 						rem.env.config.save(function (err) {
 							console.error('Credentials cleared.');
 						});
 						return;
 
-					case 'info':
-						console.log('Auth credentials:')
-						dumpObject(rem.env.config.get(process.argv[4] + ':oauth'));
+					default:
+						console.log('Stored API credentials:')
+						dumpObject(rem.env.config.get(domain + ':auth'));
 						return;
 				}
 				break;
 
-			case 'info':
-				if (process.argv.length > 3) {
-					var name = process.argv[3];
-					var api = rem.load(name, '*');
-					var info = {};
-					['id', 'name', 'docs', 'control', 'base'].forEach(function (key) {
-						if (api.manifest[key]) {
-							info[key] = api.manifest[key];
-						}
-					})
-					dumpObject(info);
-					return;
-				}
-				break;
-
 			case 'docs':
-				if (process.argv.length > 3) {
-					var name = process.argv[3];
-					var api = rem.load(name, '*');
-					if (api.manifest.docs) {
-						open(api.manifest.docs);
-					} else {
-						console.error('No API documentation found.');
-					}
-					return;
+				var api = rem.load(domain, '*');
+				if (api.manifest.docs) {
+					open(api.manifest.docs);
+				} else {
+					console.error('No API documentation found.');
 				}
-				break;
+				return;
 		}
 	}
 
 	console.error('Usage: rem [options]',
 		'\n',
-		'\n    rem ls',
-		'\n    rem info [domain]',
-		'\n    rem docs [domain]',
-		'\n    rem config (info|delete) [domain]',
-		'\n    rem auth (info|delete) [domain]',
+		'\n    rem --list',
+		'\n    rem <domain>',
+		'\n    rem <domain> docs',
+		'\n    rem <domain> config [ clear ]',
+		'\n    rem <domain> auth [ clear ]',
 		'\n');
 	process.exit(1);
 })();

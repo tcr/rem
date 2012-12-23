@@ -274,7 +274,11 @@ var OAuth1Authentication = (function () {
       var url = rem.env.url.parse(req.url);
       if (url.pathname === pathname) {
         if (!auth.oauth) {
-          return res.redirect('/');
+          res.writeHead(302, {
+            'Location': '/'
+          });
+          res.end();
+          return;
         }
         auth.complete(req.url, req.session.oauthRequestToken, req.session.oauthRequestSecret,
           function (err, user, results) {
@@ -323,12 +327,31 @@ var OAuth2API = (function (_super) {
     }, body, accessToken, cb);
   };
   nodeoauth.OAuth2.prototype.put = function (url, accessToken, body, mime, cb) {
-    return this._request("PUT", url, {
+    // node-oauth expects a method of "POST" for a body.
+    // This is a terrible, terrible temporary hack.
+    var method = {
+      toString: function () { return 'PUT'; },
+      valueOf: function () { return 'POST'; },
+      toUpperCase: function () { return method; }
+    };
+    return this._request(method, url, {
       "content-type": mime
     }, body, accessToken, cb);
   };
-  nodeoauth.OAuth2.prototype["delete"] = function (url, accessToken, body, mime, cb) {
+  nodeoauth.OAuth2.prototype['delete'] = function (url, accessToken, body, mime, cb) {
     return this._request("DELETE", url, {}, "", accessToken, cb);
+  };
+  nodeoauth.OAuth2.prototype['patch'] = function (url, accessToken, body, mime, cb) {
+    // node-oauth expects a method of "POST" for a body.
+    // This is a terrible, terrible temporary hack.
+    var method = {
+      toString: function () { return 'PATCH'; },
+      valueOf: function () { return 'POST'; },
+      toUpperCase: function () { return method; }
+    };
+    return this._request(method, url, {
+      "content-type": mime
+    }, body, accessToken, cb);
   };
 
   util.inherits(OAuth2API, rem.ManifestClient);
@@ -343,7 +366,7 @@ var OAuth2API = (function (_super) {
   OAuth2API.prototype.send = function (req, next) {
     // OAuth request.
     var args = [rem.env.url.format(req.url), this.options.oauthAccessToken];
-    if (req.method === 'PUT' || req.method === 'POST') {
+    if (req.method === 'PUT' || req.method === 'POST' || req.method == 'PATCH') {
       args.push(String(req.body), req.headers['content-type']);
     }
 
@@ -502,27 +525,33 @@ var OAuth2Authentication = (function () {
     });
   };
 
-  OAuth2Authentication.prototype.middleware = function (cb) {
-    var _this = this;
+  OAuth2Authentication.prototype.middleware = function (callback) {
     var pathname = rem.env.url.parse(this.oauthRedirect).pathname;
+
+    var auth = this;
     return function (req, res, next) {
-      if (req.path === pathname) {
-        if (!_this.oauth) {
-          return res.redirect('/');
+      var url = rem.env.url.parse(req.url);
+      if (url.pathname === pathname) {
+        if (!this.oauth) {
+          res.writeHead(302, {
+            'Location': '/'
+          });
+          res.end();
+          return;
         }
-        _this.complete(req.url, function (err, user, results) {
+        this.complete(req.url, function (err, user, results) {
           user.saveSession(req, function () {
-            cb(req, res, next);
+            callback(req, res, next);
           });
         });
       } else {
         if (req.session.oauthAccessToken != null) {
-          return _this.loadSession(req, next);
+          this.loadSession(req, next);
         } else {
-          return next();
+          next();
         }
       }
-    };
+    }.bind(this);
   };
 
   return OAuth2Authentication;
@@ -551,7 +580,7 @@ rem.oauthConsoleOob = function () {
 
   // Out-of-band authentication.
   oauth.start(function (url, token, secret) {
-    console.error(("To authenticate, visit: " + url).yellow);
+    console.error(("To authenticate, open this URL:").yellow, url);
     if (api.manifest.auth.oobVerifier) {
       read({
         prompt: ("Type in the verification code: ").yellow
@@ -636,8 +665,12 @@ rem.promptOAuth = function () {
         next();
       }
     });
+    app.use(function (req, res) {
+      res.statusCode = 404;
+      res.end('404 Not found: ' + req.url);
+    })
     // Listen on server.
     app.listen(port);
-    console.error(("To authenticate, visit: http://localhost:" + port + "/").yellow);
+    console.error(("To authenticate, open this URL:").yellow, "http://localhost:" + port + "/");
   }
 };

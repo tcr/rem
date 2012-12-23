@@ -2,7 +2,7 @@ var rem = require('../..');
 var read = require('read');
 
 // Create Twitter API, prompting for configuration values.
-rem.load('twitter.com', 1.0).prompt(function (err, user) {
+rem.connect('twitter.com', 1.0).prompt(function (err, user) {
 
   // Read tweets from our timeline.
   console.log('Latest tweets from your timeline:');

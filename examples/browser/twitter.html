@@ -1,25 +1,27 @@
 <!DOCTYPE html>
-<html>
-<body>
-  <h1>Rem Twitter Example</h1>
-  <button onclick="store.clear()">Clear Credentials</button>
 
-  <div id="account" style="display: none">
-    <h2>Welcome</h2>
-  </div>
-  <div id="songs"></div>
+<!-- Run http-server from the root rem-js/ directory -->
+<html>
+  <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.2/css/bootstrap-combined.min.css" rel="stylesheet">
+
+  <body class="container-fluid">
+    <h1>Rem Twitter Example</h1>
+    <p><b>Username:</b> <input id="username" value="timcameronryan"> <button id="fetch" class="btn">Fetch info</button></p>
+
+    <pre id="user"></pre>
   </body>
 
+  <script src="../../lib/rem.js"></script>
+  <script src='http://code.jquery.com/jquery.js'></script>
+  <script>
 
-<script src="../../lib/rem.js"></script>
-<script src='http://code.jquery.com/jquery.js'></script>
-<script>
-
-rem.loadAsync('twitter.com', 1.0, function (err, api) {
-  api('users/show').get({user_id: 'timcameronryan'}, function (err, json) {
-    console.log(json);
-  });
+rem.connectAsync('twitter.com', 1.0, function (err, api) {
+  $('#fetch').on('click', function () {
+    api('users/show').get({user_id: $('#username').val()}, function (err, json) {
+      $('#user').text(JSON.stringify(json, null, '  '));
+    });
+  })
 });
 
-</script>
+  </script>
 </html>

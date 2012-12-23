@@ -2,7 +2,7 @@ var rem = require('../..');
 
 // Create Google Calendar API, prompting for key/secret.
 // Authenticate user via the console.
-rem.load('docs.google.com', 3.0, {
+rem.connect('docs.google.com', 3.0, {
 	format: 'xml'
 }).prompt(function (err, user) {
   user('default/private/full').get(function(err, xml) {

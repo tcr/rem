@@ -3,7 +3,7 @@ var read = require('read');
 
 // Create Github API, prompting for key/secret.
 // Authenticate user via the console.
-rem.load('github.com', 3.0).prompt({
+rem.connect('github.com', 3.0).prompt({
   scope: ["user", "repo", "gist"]
 }, function (err, user) {
 
@@ -40,7 +40,7 @@ rem.load('github.com', 3.0).prompt({
             }, function (err, json) {
               if (err) return console.error('Error patching gist:', err);
 
-              console.log('Created', json.url);
+              console.log('Created', json.html_url);
             });
 
           });

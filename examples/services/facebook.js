@@ -2,7 +2,7 @@ var rem = require('../..');
 
 // Create Dropbox API, prompting for key/secret.
 // Authenticate user via the console.
-rem.load('facebook.com', 1.0).prompt({
+rem.connect('facebook.com', 1.0).prompt({
   scope: ["user_photos"]
 }, function (err, user) {
 

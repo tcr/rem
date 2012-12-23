@@ -32,7 +32,7 @@ function dumpObject (obj, prefix) {
 		}
 
 		if (process.argv.length == 3) {
-			var api = rem.load(domain, '*');
+			var api = rem.connect(domain, '*');
 			var info = {};
 			['id', 'name', 'docs', 'control'].forEach(function (key) {
 				if (api.manifest[key]) {
@@ -77,7 +77,7 @@ function dumpObject (obj, prefix) {
 				break;
 
 			case 'docs':
-				var api = rem.load(domain, '*');
+				var api = rem.connect(domain, '*');
 				if (api.manifest.docs) {
 					open(api.manifest.docs);
 				} else {

@@ -627,12 +627,11 @@ function createFromManifest (manifest, path, version, opts) {
   return rem.create(manifest, opts);
 }
 
-// TODO Be able to load manifest files locally.
-rem.load = function (path, version, opts) {
+rem.connect = function (path, version, opts) {
   return createFromManifest(env.lookupManifestSync(path), path, version, opts);
 };
 
-rem.loadAsync = function (path, version, opts, next) {
+rem.connectAsync = function (path, version, opts, next) {
   if (!next) {
     next = opts;
     opts = {};

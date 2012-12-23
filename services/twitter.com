@@ -28,7 +28,9 @@
       "oob": true,
       "oobVerifier": true,
       "oobCallback": "oob"
-    }
+    },
+
+    "jsonp": "callback"
   },
   "1.1": {
     "name": "Twitter",
@@ -58,6 +60,8 @@
       "oob": true,
       "oobVerifier": true,
       "oobCallback": "oob"
-    }
+    },
+
+    "jsonp": "callback"
   }
 }

@@ -402,38 +402,6 @@ var Client = (function () {
     env.sendRequest(req, this.agent, next);
   };
 
-  // Root request shorthands.
-
-  Client.prototype.get = function (route) {
-    var route = this('');
-    return route.get.apply(route, arguments);
-  };
-
-  Client.prototype.post = function () {
-    var route = this('');
-    return route.post.apply(route, arguments);
-  };
-
-  Client.prototype.del = function () {
-    var route = this('');
-    return route.del.apply(route, arguments);
-  };
-
-  Client.prototype.head = function () {
-    var route = this('');
-    return route.head.apply(route, arguments);
-  };
-
-  Client.prototype.put = function () {
-    var route = this('');
-    return route.put.apply(route, arguments);
-  };
-
-  Client.prototype.patch = function () {
-    var route = this('');
-    return route.patch.apply(route, arguments);
-  };
-
   // Throttling.
 
   Client.prototype.throttle = function (rate) {

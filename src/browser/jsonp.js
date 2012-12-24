@@ -26,11 +26,14 @@ var JSONP = (function(){
 			callback = addCallback
 			addCallback = true
 		}
-		query = "?";
-		params = params || {};
-		for ( key in params ) {
-			if ( params.hasOwnProperty(key) ) {
-				query += encodeURIComponent(key) + "=" + encodeURIComponent(params[key]) + "&";
+		var query = '';
+		if (params) {
+			query = "?";
+			params = params || {};
+			for ( key in params ) {
+				if ( params.hasOwnProperty(key) ) {
+					query += encodeURIComponent(key) + "=" + encodeURIComponent(params[key]) + "&";
+				}
 			}
 		}
 		var jsonp = "json" + (++counter);

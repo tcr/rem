@@ -9,8 +9,6 @@
       ["^/(files(_put)?|thumbnails)/.*", "https://api-content.dropbox.com/1"],
       ["", "https://api.dropbox.com/1"]
     ],
-    
-    "jsonp": true,
 
     "auth": {
       "type": "oauth",
@@ -22,5 +20,8 @@
       "oob": true,
       "oobVerifier": false
     }
+    
+    "jsonp": true,
+    "cors": true
   }
 }

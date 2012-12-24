@@ -95,7 +95,7 @@ env.url = {
       a.port = url.port;
     }
     a.pathname = url.pathname;
-    a.query = env.qs.stringify(url.query);
+    a.search = env.qs.stringify(url.query);
     if (url.hash) {
       a.hash = url.hash;
     }
@@ -271,4 +271,38 @@ env.promptConfiguration = function (rem, api, next) {
 
 env.promptAuthentication = function (rem, api, opts, next) {
   rem.promptOAuth(api, opts, next);
+};
+
+// Creation handler.
+
+env.oncreate = function (api) {
+  // !CORS && !JSONP
+  if (!api.manifest.cors && !api.manifest.jsonp) {
+    console.error('Warning: API does not specify explicit support for JSONP or CORS. Only same-origin requests allowed.');
+  }
+
+  // JSONP
+  if (!api.manifest.cors && api.manifest.jsonp) {
+    api.pre('request', function (req, next) {
+      if (req.method != 'GET') {
+        throw new Error('Only GET calls can be made from a JSONP API.');
+      }
+      // TODO this will fail.
+      req.url.query[api.manifest.jsonp] = JSONP.getNextCallback();
+      next(req);
+    });
+    api.send = function (req, next) {
+      var url = env.url.format(req.url);
+      JSONP.get(url, null, false, function (json) {
+        // Now fake a whole request.
+        var res = new EventEmitter();
+        res.url = url;
+        res.statusText = '';
+        res.statusCode = 200; // Not like we'd have any idea.
+        next(null, res);
+        res.emit('data', JSON.stringify(json));
+        res.emit('end');
+      });
+    };
+  }
 };

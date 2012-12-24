@@ -5,8 +5,11 @@
   <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.2/css/bootstrap-combined.min.css" rel="stylesheet">
 
   <body class="container-fluid">
-    <h1>Rem Twitter Example</h1>
-    <p><b>Username:</b> <input id="username" value="timcameronryan"> <button id="fetch" class="btn">Fetch info</button></p>
+    <h1>Rem Browser Twitter Example</h1>
+    <form id="fetch">
+      <b>Username:</b> <input id="username" value="timcameronryan">
+      <button class="btn btn-success">Fetch Profile Information</button>
+    </form>
 
     <pre id="user"></pre>
   </body>
@@ -16,10 +19,13 @@
   <script>
 
 rem.connectAsync('twitter.com', 1.0, function (err, api) {
-  $('#fetch').on('click', function () {
-    api('users/show').get({user_id: $('#username').val()}, function (err, json) {
+  $('#fetch').on('submit', function () {
+    api('users/show').get({
+      screen_name: $('#username').val()
+    }, function (err, json) {
       $('#user').text(JSON.stringify(json, null, '  '));
     });
+    return false;
   })
 });
 

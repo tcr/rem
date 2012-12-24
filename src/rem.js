@@ -573,7 +573,9 @@ rem.create = function (manifest, opts) {
   if (typeof manifest == 'string') {
     manifest = { base: manifest };
   }
-  return callable(new ManifestClient(manifest, opts));
+  var api = callable(new ManifestClient(manifest, opts));
+  rem.env.oncreate(api);
+  return api;
 };
 
 function createFromManifest (manifest, path, version, opts) {

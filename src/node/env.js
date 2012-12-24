@@ -280,3 +280,7 @@ env.promptAuthentication = function (rem, api, opts, next) {
       throw new Error('No support for this authentication type.');
   }
 };
+
+// Creation handler.
+
+env.oncreate = function () { };

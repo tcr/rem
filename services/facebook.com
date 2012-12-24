@@ -21,6 +21,8 @@
       },
       "scopeSeparator": ",",
       "validate": "/me"
-    }
+    },
+
+    "cors": true
   }
 }

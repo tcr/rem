@@ -13,7 +13,9 @@ rem.connect('twitter.com', 1.0).prompt(function (err, user) {
 
     // Post a tweet.
     read({prompt: "Enter a status to tweet: "}, function (err, txt) {
-      user('statuses/update').post({status: txt}, function (err, json) {
+      user('statuses/update').post({
+        status: txt
+      }, function (err, json) {
         console.log(err, json);
       });
     });

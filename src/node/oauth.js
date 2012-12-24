@@ -338,7 +338,10 @@ var OAuth2API = (function (_super) {
       "content-type": mime
     }, body, accessToken, cb);
   };
-  nodeoauth.OAuth2.prototype['delete'] = function (url, accessToken, body, mime, cb) {
+  nodeoauth.OAuth2.prototype['head'] = function (url, accessToken, cb) {
+    return this._request("HEAD", url, {}, "", accessToken, cb);
+  };
+  nodeoauth.OAuth2.prototype['delete'] = function (url, accessToken, cb) {
     return this._request("DELETE", url, {}, "", accessToken, cb);
   };
   nodeoauth.OAuth2.prototype['patch'] = function (url, accessToken, body, mime, cb) {

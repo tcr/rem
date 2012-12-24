@@ -384,7 +384,17 @@ var OAuth2API = (function (_super) {
     // OAuth request.
     var args = [rem.env.url.format(req.url), this.options.oauthAccessToken];
     if (req.method === 'PUT' || req.method === 'POST' || req.method == 'PATCH') {
-      args.push(String(req.body), req.headers['content-type']);
+      args.push(req.body, req.headers['content-type']);
+    }
+
+    if (rem.env.isList(req.body)) {
+      // node-oauth doesn't support binary uploads. Horrible hacks ahoy.
+      if (!Buffer._byteLength) {
+        Buffer._byteLength = Buffer.byteLength;
+      }
+      Buffer.byteLength = function (arg) {
+        return arg === req.body ? req.body.length : Buffer._byteLength(arg);
+      };
     }
 
     // TODO node-oauth OAuth2 support doesn't let you return streams.

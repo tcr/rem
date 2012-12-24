@@ -377,6 +377,8 @@ var OAuth2API = (function (_super) {
     // Fix this sometime when I have the energy.
     this.oauth[req.method.toLowerCase()].apply(this.oauth, args.concat([function (err, data) {
       var stream = new (require('stream')).Stream();
+      stream.url = rem.env.url.format(req.url);
+      stream.headers = {};
 
       // node-oauth will send a status code in the error object.
       if (err && typeof err == 'object' && err.statusCode) {

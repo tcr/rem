@@ -349,8 +349,11 @@ var Client = (function () {
     var url = ((segments[0] || '').indexOf('//') != -1 ? segments.shift() : (segments.length ? '/' : ''))
       + (segments.length ? env.joinPath.apply(null, segments) : '');
 
+    url = env.url.parse(url);
+    augment(url.query, query);
+
     return new Route(Request.create({
-      url: env.url.parse(url)
+      url: url
     }), api.options.uploadFormat, function (req, next) {
       api.middleware('request', req, function () {
         // Debug flag.

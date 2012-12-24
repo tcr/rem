@@ -324,6 +324,12 @@ var Client = (function () {
 
     // Defaults
     this.options.format = this.options.format || 'json';
+    
+    // User agent.
+    this.pre('request', function (req, next) {
+      req.headers['user-agent'] = req.headers['user-agent'] || rem.userAgent;
+      next();
+    });
   }
 
   // Configuration prompt.
@@ -477,52 +483,48 @@ var ManifestClient = (function () {
 
     // Default credentials list.
     this.manifest.configuration = this.manifest.configuration || ['key', 'secret'];
+    this.manifest.formats = this.manifest.formats || {json: {}};
+
     // Load format-specific options from the manifest.
-    if (!this.manifest.formats) {
-      this.manifest.formats = {json: {}};
-    }
     if (!this.manifest.formats[this.options.format]) {
       throw new Error("Format \"" + this.options.format + "\" not available. Please specify an available format in the options parameter.");
     }
     augment(this.manifest, this.manifest.formats[this.options.format]);
 
     // Response. Expand payload shorthand.
-    this.pre('request', function (req, next) {
-      // Determine base that matches the path name.
-      var pathname = req.url.pathname.replace(/^(?!\/)/, '/')
-      // Bases can be fixed or an array of (pattern, base) tuples.
-      if (env.isList(this.manifest.base)) {
-        var base = '';
-        this.manifest.base.some(function (tuple) {
-          if (pathname.match(new RegExp(tuple[0]))) {
-            base = tuple[1];
-            return true;
+    if (this.manifest.base) {
+      this.pre('request', function (req, next) {
+        // Determine base that matches the path name.
+        var pathname = req.url.pathname.replace(/^(?!\/)/, '/')
+        // Bases can be fixed or an array of (pattern, base) tuples.
+        if (env.isList(this.manifest.base)) {
+          var base = '';
+          this.manifest.base.some(function (tuple) {
+            if (pathname.match(new RegExp(tuple[0]))) {
+              base = tuple[1];
+              return true;
+            }
+          });
+        } else {
+          var base = String(this.manifest.base);
+        }
+        
+        // Update the request with base.
+        // TODO check for matching base and use it.
+        if (base && (req.url.protocol || req.url.hostname)) {
+          throw new Error('Cannot access full URL on an API with a base URL: ' + env.url.format(req.url));
+        }
+        Request.update(req, {
+          url: env.url.parse(base)
+        });
+        Request.update(req, {
+          url: {
+            pathname: env.joinPath(req.url.pathname, pathname)
           }
         });
-      } else if (this.manifest.base) {
-        var base = String(this.manifest.base);
-      }
-      
-      // Update the request with base.
-      if (base && (req.url.protocol || req.url.hostname)) {
-        throw new Error('Cannot access full URL on an API with a base URL: ' + env.url.format(req.url));
-      }
-      Request.update(req, {
-        url: env.url.parse(base)
+        next();
       });
-      Request.update(req, {
-        url: {
-          pathname: env.joinPath(req.url.pathname, pathname)
-        }
-      });
-      next();
-    });
-
-    // User agent.
-    this.pre('request', function (req, next) {
-      req.headers['user-agent'] = req.headers['user-agent'] || rem.userAgent;
-      next();
-    });
+    }
     // Route root pathname.
     if (this.manifest.basepath) {
       this.pre('request', function (req, next) {

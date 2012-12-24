@@ -273,8 +273,8 @@ env.promptAuthentication = function (rem, api, opts, next) {
   switch (api.manifest.auth && api.manifest.auth.type) {
     case 'oauth':
       return rem.promptOAuth.call(rem, api, opts, next);
-    case 'cookies':
-      return rem.promptSession.call(rem, api, opts, next);
+    case 'basic:cookies':
+      return rem.promptBasicAuth.call(rem, api, opts, next);
     default:
       throw new Error('No support for this authentication type.');
   }

@@ -135,17 +135,17 @@ var CookieSessionAuthentication = (function () {
  * HTTP Sessions.
  */
 
-rem.session = function (api) {
+rem.basicAuth = function (api) {
   return new CookieSessionAuthentication(api);
 };
 
-rem.promptSession = function (api, opts, next) {
+rem.promptBasicAuth = function (api, opts, next) {
   if (!next) next = opts, opts = {};
 
   var read = require('read');
   require('colors');
 
-  var session = rem.session(api);
+  var session = rem.basicAuth(api);
   read({prompt: ('Username: ').yellow}, function (err, user) {
     read({prompt: ('Password: ').yellow, silent: true}, function (err, password) {
       console.log('');

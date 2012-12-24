@@ -701,6 +701,6 @@ rem.poll = function (endpoint, opts, callback) {
 if (envtype == 'node') {
   // Authentication methods.
   require('./node/oauth');
-  require('./node/session');
+  require('./node/basic');
   //require('./node/aws');
 }

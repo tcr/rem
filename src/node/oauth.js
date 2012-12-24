@@ -215,7 +215,7 @@ var OAuth1Authentication = (function () {
       function (err, oauthAccessToken, oauthAccessSecret, results) {
         if (err) {
           console.error("Error authorizing OAuth endpoint: " + JSON.stringify(err));
-          cb(err, null, results);
+          next(err, null, results);
         } else {
           return auth.loadState({
             oauthAccessToken: oauthAccessToken,
@@ -644,14 +644,17 @@ rem.promptOAuth = function () {
         rem.env.config.save();
 
         // Respond.
-        res.end("<h1>Oauthenticated.</h1><p>Return to your console, hero!</p><p>To restart authentication, refresh the page.</p>");
+        res.end("<h1>OAuthenticated.</h1><p>Return to your console, hero!</p>");
         console.error("");
+
+        // Close server and invoke callback on next event loop.
         process.nextTick(function () {
+          req.connection.destroy()
+          server.close();
           cb(null, req.user);
         });
       });
     }));
-
     // Login page.
     app.use(function (req, res, next) {
       if (req.url == '/') {
@@ -665,10 +668,12 @@ rem.promptOAuth = function () {
         next();
       }
     });
+    // The rest.
     app.use(function (req, res) {
       res.statusCode = 404;
       res.end('404 Not found: ' + req.url);
     })
+
     // Listen on server.
     app.listen(port);
     console.error(("To authenticate, open this URL:").yellow, "http://localhost:" + port + "/");

@@ -137,11 +137,13 @@ env.lookupManifestSync = function (name) {
   var file = name.match(/^\./)
     ? path.join(path.dirname(getInvokingPath(3)), name)
     : path.join(MANIFEST_PATH, path.join('/', name));
+  var json;
   try {
-    return JSON.parse(fs.readFileSync(file, 'utf-8'));
+    json = fs.readFileSync(file, 'utf-8');
   } catch (e) {
     return null;
   }
+  return json ? JSON.parse(json) : null;
 };
 
 env.lookupManifest = function (name, next) {
@@ -149,11 +151,10 @@ env.lookupManifest = function (name, next) {
     ? path.join(path.dirname(getInvokingPath(3)), name)
     : path.join(MANIFEST_PATH, path.join('/', name));
   fs.readFile(file, 'utf-8', function (err, data) {
-    try {
-      next(err, !err && JSON.parse(data));
-    } catch (e) {
-      next(e, null);
+    if (err) {
+      return next(err);
     }
+    next(null, JSON.parse(data));
   });
 };
 

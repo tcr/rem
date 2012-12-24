@@ -19,7 +19,7 @@
       "validate": "/account/info",
       "oob": true,
       "oobVerifier": false
-    }
+    },
     
     "jsonp": true,
     "cors": true

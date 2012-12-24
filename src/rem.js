@@ -256,10 +256,7 @@ var Route = (function () {
   }
 
   Route.prototype.get = function (query, next) {
-    if (typeof query == 'function') {
-      next = query;
-      query = null;
-    }
+    if (arguments.length == 1) next = query, query = null;
     return this.callback(Request.update(this.req, {
       url: {
         query: query || {}
@@ -269,10 +266,7 @@ var Route = (function () {
   };
 
   Route.prototype.head = function (query, next) {
-    if (typeof query == 'function') {
-      next = query;
-      query = null;
-    }
+    if (arguments.length == 1) next = query, query = null;
     return this.callback(Request.update(this.req, {
       url: {
         query: query || {}
@@ -281,42 +275,33 @@ var Route = (function () {
     }), next);
   };
 
+  Route.prototype.del = function (next) {
+    return this.callback(Request.update(this.req, {
+      method: 'DELETE'
+    }), next);
+  };
+
   Route.prototype.post = function (mime, body, next) {
-    if (typeof body == 'function') {
-      next = body;
-      body = mime;
-      mime = this.defaultBodyMime;
-    }
+    if (arguments.length == 2) next = body, body = mime, mime = this.defaultBodyMime;
+    if (arguments.length == 1) next = mime, body = null, mime = this.defaultBodyMime;
     return this.callback(Request.update(Request.setBody(this.req, mime, body), {
       method: 'POST'
     }), next);
   };
 
   Route.prototype.patch = function (mime, body, next) {
-    if (typeof body == 'function') {
-      next = body;
-      body = mime;
-      mime = this.defaultBodyMime;
-    }
+    if (arguments.length == 2) next = body, body = mime, mime = this.defaultBodyMime;
+    if (arguments.length == 1) next = mime, body = null, mime = this.defaultBodyMime;
     return this.callback(Request.update(Request.setBody(this.req, mime, body), {
       method: 'PATCH'
     }), next);
   };
 
   Route.prototype.put = function (mime, body, next) {
-    if (typeof body == 'function') {
-      next = body;
-      body = mime;
-      mime = this.defaultBodyMime;
-    }
+    if (arguments.length == 2) next = body, body = mime, mime = this.defaultBodyMime;
+    if (arguments.length == 1) next = mime, body = null, mime = this.defaultBodyMime;
     return this.callback(Request.update(Request.setBody(this.req, mime, body), {
       method: 'PUT'
-    }), next);
-  };
-
-  Route.prototype.del = function (next) {
-    return this.callback(Request.update(this.req, {
-      method: 'DELETE'
     }), next);
   };
 
@@ -362,8 +347,10 @@ var Client = (function () {
         }
 
         send(req, next);
-        return req;
       });
+
+      // TODO
+      //return duplex_stream_for_request
     });
   }
 
@@ -401,8 +388,17 @@ var Client = (function () {
     rem.parsers[this.options.format](res, next);
   };
 
-  Client.prototype.send = function (req, next) {
-    env.sendRequest(req, this.agent, next);
+  Client.prototype.send = function (opts, next) {
+    var req = env.sendRequest(opts, this.agent, next);
+
+    // Write out the body. 
+    if (opts.body != null) {
+      req.write(opts.body);
+    }
+    // Close connection if we don't need or have been supplied with a body.
+    if (['PUT', 'POST', 'PATCH'].indexOf(opts.method) == -1 || opts.body != null) {
+      req.end();
+    }
   };
 
   // Throttling.

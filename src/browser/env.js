@@ -73,22 +73,25 @@ env.consumeStream = function (stream, next) {
 env.url = {
   parse: function (str) {
     var a = document.createElement('a');
-    a.href = str;
+    a.href = str.indexOf(':') == -1
+      || (str.indexOf('?') > -1 && str.indexOf(':') > str.indexOf('?'))
+      || (str.indexOf('#') > -1 && str.indexOf(':') > str.indexOf('#'))
+      ? 'fake:' + str : str;
     return {
-      protocol: a.protocol,
-      auth: a.auth,
-      hostname: a.hostname,
-      port: a.port,
+      protocol: a.protocol && a.protocol != 'fake:' ? a.protocol : null,
+      auth: a.auth || null,
+      hostname: a.hostname || null,
+      port: a.port || null,
       pathname: a.pathname,
       query: env.qs.parse(a.search || ''),
-      hash: a.hash && decodeURIComponent(a.hash.substr(1))
+      hash: a.hash ? decodeURIComponent(a.hash.substr(1)) : null
     };
   },
 
   format: function (url) {
     var a = document.createElement('a');
-    a.href = "http://example.com/";
-    a.protocol = url.protocol;
+    a.href = "fake:";
+    a.protocol = url.protocol || 'http:';
     a.auth = url.auth;
     a.hostname = url.hostname;
     if (url.port) {
@@ -184,9 +187,19 @@ env.sendRequest = function (opts, agent, next) {
       req.setRequestHeader(k, headers[k]);
     }
   }
-  req.send(opts.body);
 
-  return req;
+  var body = [];
+  return {
+    write: function (data) {
+      body.push(data);
+    },
+    end: function (data) {
+      if (arguments.length > 0) {
+        body.push(data);
+      }
+      req.send(body.length ? body.join('') : null);
+    }
+  };
 };
 
 // Path

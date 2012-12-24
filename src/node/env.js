@@ -86,20 +86,18 @@ env.sendRequest = function (opts, agent, next) {
   req.on('response', function (res) {
     // Attempt to follow Location: headers.
     if (((res.statusCode / 100) | 0) == 3 && res.headers['location'] && opts.redirect !== false) {
+      // Update the request with the new header and change the method.
+      opts.method = 'GET';
       opts.url = env.url.parse(res.headers['location']);
-      env.sendRequest(opts, agent, next);
+      env.sendRequest(opts, agent, next)
+        .end();
     } else {
       res.url = env.url.format(opts.url); // Populate res.url property
       next && next(null, res);
     }
   });
 
-  // Headers.
-  if (opts.body != null) {
-    req.write(opts.body);
-  }
-  req.end();
-
+  // Return unclosed request.
   return req;
 };
 

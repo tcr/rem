@@ -95,18 +95,32 @@ var OAuth1API = (function (_super) {
   OAuth1API.prototype.send = function (req, next) {
     // OAuth request.
     var args = [rem.env.url.format(req.url), this.options.oauthAccessToken, this.options.oauthAccessSecret];
-    if (req.method === 'PUT' || req.method === 'POST') {
+    var passDirectly = false;
+    if (req.method === 'PUT' || req.method === 'POST' || req.method == 'PATCH') {
       // Signatures need to be calculated from forms; let node-oauth do that
       if (req.headers['content-type'] === 'application/x-www-form-urlencoded') {
         args.push(querystring.parse(String(req.body)));
+      } else if (rem.env.isList(req.body)) {
+        // node-oauth doesn't support binary uploads. Horrible hacks ahoy.
+        passDirectly = true;
+        if (!Buffer._byteLength) {
+          Buffer._byteLength = Buffer.byteLength;
+        }
+        Buffer.byteLength = function (arg) {
+          return arg === req.body ? req.body.length : Buffer._byteLength(arg);
+        };
       } else {
         args.push(String(req.body), req.headers['content-type']);
       }
     }
 
     // TODO support close early code from https://github.com/ciaranj/node-oauth/blob/master/lib/oauth.js#L349
-    //this.oauth[req.method.toLowerCase()].apply(this.oauth, args.concat([next]));
-    var oauthreq = this.oauth[req.method.toLowerCase()].apply(this.oauth, args)
+    // Buffers need to be passed directly to code, we let node-oauth handle strings otherwise.
+    if (passDirectly) {
+      var oauthreq = this.oauth._performSecureRequest( this.options.oauthAccessToken, this.options.oauthAccessSecret, req.method, rem.env.url.format(req.url), null, req.body, req.headers['content-type']);
+    } else {
+      var oauthreq = this.oauth[req.method.toLowerCase()].apply(this.oauth, args)
+    }
     oauthreq.on('response', function (res) {
       next(null, res);
     }).on('error', function (err) {

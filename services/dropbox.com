@@ -2,7 +2,7 @@
   "1": {
     "id": "dropbox.com",
     "name": "Dropbox",
-    "docs": "https://www.dropbox.com/developers",
+    "docs": "https://www.dropbox.com/developers/reference/api",
     "control": "https://www.dropbox.com/developers/apps",
 
     "base": [

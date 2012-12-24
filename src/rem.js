@@ -353,7 +353,8 @@ var Client = (function () {
       api.middleware('request', req, function () {
         // Debug flag.
         if (api.debug) {
-          console.error('[URL]', env.url.format(req.url));
+          console.error(String(req.method).green, String(env.url.format(req.url)).grey,
+            req.body ? ('[body: ' + (req.body.length ? req.body.length + ' bytes' : 'stream') + ']').grey : '');
         }
 
         // Consume streams.

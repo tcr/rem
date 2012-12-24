@@ -7,6 +7,8 @@ rem.connect('github.com', 3.0).prompt({
   scope: ["user", "repo", "gist"]
 }, function (err, user) {
 
+  user.debug = true;
+
   // List user gists.
   user('user').get(function (err, profile) {
     if (err) return console.error('Error retrieving profile:', err);

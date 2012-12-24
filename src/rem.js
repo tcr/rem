@@ -319,12 +319,12 @@ var Client = (function () {
   env.inherits(Client, Middleware);
 
   function Client (options) {
-    this.manifest = {}; // TODO What?
-    this.options = options || {};
+    // Defaults.
+    this.options = { format: 'json' };
+    if (options) {
+      this.configure(options);
+    }
 
-    // Defaults
-    this.options.format = this.options.format || 'json';
-    
     // User agent.
     this.pre('request', function (req, next) {
       req.headers['user-agent'] = req.headers['user-agent'] || rem.userAgent;
@@ -332,7 +332,11 @@ var Client = (function () {
     });
   }
 
-  // Configuration prompt.
+  Client.prototype.configure = function (options) {
+    augment(this.options, options);
+
+    return this;
+  };
 
   // Invoke as method.
   function invoke (api, segments, send) {
@@ -475,21 +479,12 @@ var ManifestClient = (function () {
   env.inherits(ManifestClient, Client);
 
   function ManifestClient (manifest, options) {
-    options = options || {};
-    options.uploadFormat = options.uploadFormat || manifest.uploadFormat;
-
-    Client.call(this, options);
+    // Define manifst.
     this.manifest = manifest;
-
-    // Default credentials list.
     this.manifest.configuration = this.manifest.configuration || ['key', 'secret'];
-    this.manifest.formats = this.manifest.formats || {json: {}};
 
-    // Load format-specific options from the manifest.
-    if (!this.manifest.formats[this.options.format]) {
-      throw new Error("Format \"" + this.options.format + "\" not available. Please specify an available format in the options parameter.");
-    }
-    augment(this.manifest, this.manifest.formats[this.options.format]);
+    // Initialize client and options.
+    Client.call(this, options);
 
     // Response. Expand payload shorthand.
     if (this.manifest.base) {
@@ -561,6 +556,20 @@ var ManifestClient = (function () {
     }
   }
 
+  ManifestClient.prototype.configure = function (options) {
+    augment(this.options, options);
+
+    // Load format-specific options from the manifest.
+    if (this.manifest.formats) {
+      if (!this.manifest.formats[this.options.format]) {
+        throw new Error("Format \"" + this.options.format + "\" is not explicitly defined in this manifest. Please specify an available format this API supports.");
+      }
+      augment(this.manifest, this.manifest.formats[this.options.format]);
+    }
+
+    return this;
+  };
+
   // Prompt.
 
   ManifestClient.prototype.promptAuthentication = function (opts, next) {
@@ -622,7 +631,7 @@ function createFromManifest (manifest, path, version, opts) {
   }
   manifest = manifest[version];
   manifest.version = version;
-  return rem.createClient(manifest, opts);
+  return rem.createClient(manifest).configure(opts);
 }
 
 rem.connect = function (path, version, opts) {

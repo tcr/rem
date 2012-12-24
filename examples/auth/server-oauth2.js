@@ -10,11 +10,10 @@ app.use(express.cookieParser());
 app.use(express.session({
   secret: "some arbitrary secret"
 }));
-app.listen(3000);
 
-// Create the Dropbox OAuth 2.0 API.
-var dbox = rem.load('facebook', 1.0).prompt()
-var oauth = rem.oauth(dbox, "http://localhost:3000/oauth/callback/");
+// Create the Facebook OAuth 2.0 API.
+var fb = rem.connect('facebook.com', 1.0);
+var oauth = rem.oauth(fb, "http://localhost:3000/oauth/callback/");
 
 // The oauth middleware intercepts the callback url that we set when we
 // created the oauth middleware.
@@ -30,21 +29,32 @@ app.get('/login/', function (req, res) {
   });
 });
 
+// Logout URL clears the user's session.
+app.get('/logout/', function (req, res) {
+  oauth.clearSession(req, function (url) {
+    res.redirect('/');
+  });
+});
+
 // When the user is logged in, the "req.user" variable is set. This is
 // an authenticated api you can use to make REST calls.
 app.get('/', function(req, res) {
   if (!req.user) {
-    res.write("<h1>Unauthenticated.</h1>");
-    res.end("<a href='/login/'>Log in with OAuth</a>");
-  } else {
-    res.write('<h1>Authenticated.</h1>');
-    req.user('me').get(function(err, json) {
-      res.write('<pre>');
-      res.write('Your profile: (error ' + err + ')\n');
-      res.write(JSON.stringify(json, null, '\t'));
-      res.end();
-    });
+    res.end("<h1><a href='/login/'>Log in with OAuth</a></h1>");
+    return;
   }
+
+  res.write('<h1>Welcome Facebook user!</h1>');
+  req.user('me').get(function(err, json) {
+    res.write('<p>Your profile:</p><pre>')
+    res.write(JSON.stringify(json, null, '\t'));
+    res.end();
+  });
 });
 
-console.log('Visit:', "http://localhost:3000/");
+// Prompt for configuration. In a production setting, you could use
+// fb.configure({ key: <your api key>, secret: <your api secret> })
+fb.promptConfiguration(function () {
+  app.listen(3000);
+  console.log('Visit:', "http://localhost:3000/");
+});

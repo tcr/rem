@@ -10,10 +10,9 @@ app.use(express.cookieParser());
 app.use(express.session({
   secret: "some arbitrary secret"
 }));
-app.listen(3000);
 
 // Create the Dropbox OAuth API.
-var dbox = rem.load('dropbox', 1.0).prompt()
+var dbox = rem.connect('dropbox.com', 1.0);
 var oauth = rem.oauth(dbox, "http://localhost:3000/oauth/callback/");
 
 // The oauth middleware intercepts the callback url that we set when we
@@ -30,23 +29,41 @@ app.get('/login/', function (req, res) {
   });
 });
 
+// Logout URL clears the user's session.
+app.get('/logout/', function (req, res) {
+  oauth.clearSession(req, function (url) {
+    res.redirect('/');
+  });
+});
+
 // When the user is logged in, the "req.user" variable is set. This is
 // an authenticated api you can use to make REST calls.
 app.get('/', function(req, res) {
   if (!req.user) {
-    res.write("<h1>Unauthenticated.</h1>");
-    res.end("<a href='/login/'>Log in with OAuth</a>");
-  } else {
-    res.write('<h1>Authenticated.</h1>');
-    req.user('metadata/sandbox/').get(function(err, json) {
-      res.write('<pre>');
-      res.write('Sandbox contents: (error ' + err + ')\n');
-      res.write(json.contents.map(function (file) {
-        return ' - ' + file.path;
-      }).join('\n'));
-      res.end();
-    });
+    res.end("<h1><a href='/login/'>Log in with OAuth</a></h1>");
+    return;
   }
+   
+  res.write('<h1>Welcome Dropbox user!</h1>');
+  req.user('metadata/sandbox').get(function(err, json) {
+    res.write('<p>Files in your App folder:</p><ul>');
+
+    // Get a URL for each file, then end the connection.
+    var i = json.contents.length;
+    json.contents.forEach(function (file) {
+      req.user('media/sandbox', file.path).get(function (err, json) {
+        res.write('<li><a href="' + json.url + '">' + file.path + '</a></li>');
+        if (--i == 0) {
+          res.end('</ul><hr><a href="/logout/">Logout?</a>');
+        }
+      });
+    });
+  });
 });
 
-console.log('Visit:', "http://localhost:3000/");
+// Prompt for configuration. In a production setting, you could use
+// dbox.configure({ key: <your api key>, secret: <your api secret> })
+dbox.promptConfiguration(function () {
+  app.listen(3000);
+  console.log('Visit:', "http://localhost:3000/");
+});

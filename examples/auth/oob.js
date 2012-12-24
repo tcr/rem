@@ -2,15 +2,17 @@ var rem = require('rem');
 var fs = require('fs');
 var read = require('read');
 
-var dbox = rem.load('dropbox', 1.0).prompt();
+var dbox = rem.connect('dropbox.com', 1.0)
 var oauth = rem.oauth(dbox);
 
-oauth.start(function(url, token, secret) {
-  console.log("Visit:", url);
-  return read({
-    prompt: "Hit enter when finished..."
-  }, function() {
-    return oauth.complete(token, secret, authorized);
+dbox.promptConfiguration(function () {
+  oauth.start(function(url, token, secret) {
+    console.log("Visit:", url);
+    return read({
+      prompt: "Hit enter when finished..."
+    }, function() {
+      return oauth.complete(token, secret, authorized);
+    });
   });
 });
 
@@ -20,7 +22,11 @@ function authorized (err, user) {
     return;
   }
 
-  user('files_put/sandbox/REM.txt').put('text/plain', 'REM is hiding in your dropcube', function(err, json) {
+  // Create a file.
+  user('files_put/sandbox/rem.txt').put(
+    'text/plain',
+    'Rem wuz here ' + String(new Date())
+  , function(err, json) {
     console.log('PUT file: (error', err, ')');
     console.log(json);
   });

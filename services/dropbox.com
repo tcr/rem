@@ -18,10 +18,11 @@
       "authorizeEndpoint": "https://www.dropbox.com/1/oauth/authorize",
       "validate": "/account/info",
       "oob": true,
-      "oobVerifier": false
+      "oobVerifier": false,
+      "jsonp": "callback"
     },
     
-    "jsonp": true,
+    "jsonp": "callback",
     "cors": true
   }
 }

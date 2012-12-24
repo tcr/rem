@@ -566,7 +566,7 @@ rem.oauth2 = function (api, callback) {
  * Oauth console.
  */
 
-rem.oauthConsoleOob = function () {
+rem.promptOAuthOob = function () {
   var args = Array.prototype.slice.call(arguments);
   var cb = args.pop();
   var api = args.shift();
@@ -598,21 +598,23 @@ rem.oauthConsoleOob = function () {
   });
 };
 
-rem.promptOAuth = function () {
+function similar (a, b) {
+  return JSON.stringify(a) == JSON.stringify(b);
+}
+
+rem.promptOAuth = function (/* api, [params,] callback */) {
   var args = Array.prototype.slice.call(arguments);
-  var cb = args.pop();
-  var api = args.shift();
-  var params = args.pop(); // optional
+  var cb = args.pop(), api = args.shift(), params = args.pop() || {};
 
   var oauth, port = (params && params.port) || 3000;
     
   // Authenticated API.
   oauth = rem.oauth(api, "http://localhost:" + port + "/oauth/callback/");
 
-  // Check config for cached credentials.
+  // Check config for cached credentials, ensuring parameters are the same.
   var cred = rem.env.config.get(api.manifest.id + ':auth');
-  if (cred) {
-    return oauth.loadState(cred, function (user) {
+  if (cred && similar(cred.params || {}, params)) {
+    oauth.loadState(cred, function (user) {
       user.validate(function (validated) {
         if (!validated) {
           requestCredentials();
@@ -640,6 +642,7 @@ rem.promptOAuth = function () {
     app.use(oauth.middleware(function (req, res, next) {
       // Save to nconf.
       req.user.saveState(function (state) {
+        state.params = params;
         rem.env.config.set(api.manifest.id + ':auth', state);
         rem.env.config.save();
 
@@ -675,7 +678,8 @@ rem.promptOAuth = function () {
     })
 
     // Listen on server.
-    app.listen(port);
+    var server = require('http').createServer(app);
+    server.listen(port);
     console.error(("To authenticate, open this URL:").yellow, "http://localhost:" + port + "/");
   }
 };

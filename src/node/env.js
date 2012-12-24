@@ -24,6 +24,24 @@ env.consumeStream = function (stream, next) {
 
 var url = require('url');
 
+env.parseURL = function (str) {
+  var parsed = url.parse(String(str), true);
+  return {
+    protocol: parsed.protocol || undefined,
+    auth: parsed.auth || undefined,
+    hostname: parsed.hostname || undefined,
+    port: parsed.port || undefined,
+    pathname: parsed.pathname || undefined,
+    query: parsed.query || {},
+    search: parsed.search || undefined,
+    hash: parsed.hash || undefined
+  };
+};
+
+env.formatURL = function (obj) {
+  return url.format(obj);
+};
+
 env.url = {
   parse: function (str) {
     var parsed = url.parse(String(str), true);
@@ -31,7 +49,7 @@ env.url = {
       protocol: parsed.protocol || undefined,
       auth: parsed.auth || undefined,
       hostname: parsed.hostname || undefined,
-      port: parsed.port || 0,
+      port: parsed.port || undefined,
       pathname: parsed.pathname || undefined,
       query: parsed.query || {},
       search: parsed.search || undefined,
@@ -211,14 +229,12 @@ env.promptConfiguration = function (rem, api, next) {
   }
 
   // Configure, then request key and optionally a secret.
-  api.middleware('configure', function () {
-    requestKey(function () {
-      if (api.manifest.configuration.indexOf('secret') > -1) {
-        requestSecret(persist);
-      } else {
-        persist();
-      }
-    })
+  requestKey(function () {
+    if (api.manifest.configuration.indexOf('secret') > -1) {
+      requestSecret(persist);
+    } else {
+      persist();
+    }
   });
 
   function requestKey (next) {

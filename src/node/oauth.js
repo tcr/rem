@@ -166,11 +166,6 @@ var OAuth1Authentication = (function () {
     // Get redirect URL.
     this.oob = !redirect;
     this.oauthRedirect = this.oob ? this.config.oobCallback : redirect;
-
-    api.pre('configure', function (next) {
-      console.error(("Your callback URL should be set to " + this.oauthRedirect + ', or some valid URL.').yellow);
-      next();
-    }.bind(this));
   }
 
   OAuth1Authentication.prototype.start = function () {
@@ -465,11 +460,6 @@ var OAuth2Authentication = (function () {
     // Get redirect URL.
     this.oob = !redirect;
     this.oauthRedirect = this.oob ? this.config.oobCallback : redirect;
-
-    api.pre('configure', function (next) {
-      console.error(("Your callback URL should be set to " + this.oauthRedirect + ', or some valid URL.').yellow);
-      next();
-    }.bind(this));
   }
 
   OAuth2Authentication.prototype.start = function () {
@@ -709,6 +699,7 @@ rem.promptOAuth = function (/* api, [params,] callback */) {
     // Listen on server.
     var server = require('http').createServer(app);
     server.listen(port);
+    console.error(("Ensure your API's callback URL is set to " + oauth.oauthRedirect).yellow);
     console.error(("To authenticate, open this URL:").yellow, "http://localhost:" + port + "/");
   }
 };

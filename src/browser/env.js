@@ -241,7 +241,7 @@ env.lookupManifest = function (name, next) {
   var file = name.match(/^\.\/|\/\//)
     ? name
     : MANIFEST_PATH + env.joinPath('/', name).replace(/^\//, '');
-  (new rem.Client()).json(file).get(next);
+  rem.json(file).get(next);
 };
 
 // Array/Buffer detection

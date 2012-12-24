@@ -73,9 +73,7 @@ var CookieSessionAuthentication = (function () {
     }
 
     // Request.
-    (new rem.Client({
-      uploadFormat: 'form'
-    })).text(this.config.loginEndpoint).post(payload, function (err, stream, res) {
+    rem.text(this.config.loginEndpoint).post('form', payload, function (err, stream, res) {
       if (err) {
         callback(err, null);
       }

@@ -595,7 +595,7 @@ var ManifestClient = (function () {
 rem.Client = Client;
 rem.ManifestClient = ManifestClient;
 
-rem.create = function (manifest, opts) {
+rem.createClient = function (manifest, opts) {
   if (typeof manifest == 'string') {
     manifest = { base: manifest };
   }
@@ -620,7 +620,7 @@ function createFromManifest (manifest, path, version, opts) {
   }
   manifest = manifest[version];
   manifest.version = version;
-  return rem.create(manifest, opts);
+  return rem.createClient(manifest, opts);
 }
 
 rem.connect = function (path, version, opts) {
@@ -645,7 +645,7 @@ rem.connectAsync = function (path, version, opts, next) {
  * Default client request methods.
  */
 
-var defaultClient = (new rem.Client());
+var defaultClient = new rem.Client();
 
 Object.keys(rem.parsers).forEach(function (format) {
   rem[format] = function () {

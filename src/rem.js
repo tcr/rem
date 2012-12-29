@@ -497,8 +497,8 @@ var ManifestClient = (function () {
     Client.call(this, options);
 
     // Response. Expand payload shorthand.
-    if (this.manifest.base) {
-      this.pre('request', function (req, next) {
+    this.pre('request', function (req, next) {
+      if (this.manifest.base) {
         // Determine base that matches the path name.
         var pathname = req.url.pathname.replace(/^(?!\/)/, '/')
         // Bases can be fixed or an array of (pattern, base) tuples.
@@ -527,43 +527,34 @@ var ManifestClient = (function () {
             pathname: env.joinPath(req.url.pathname, pathname)
           }
         });
-        next();
-      });
-    }
-    // Route root pathname.
-    if (this.manifest.basepath) {
-      this.pre('request', function (req, next) {
+      }
+      // Route root pathname.
+      if (this.manifest.basepath) {
         req.url.pathname = this.manifest.basepath + req.url.pathname;
-        next();
-      });
-    }
-    // Route suffix.
-    if (this.manifest.suffix) {
-      this.pre('request', function (req, next) {
+      }
+      // Route suffix.
+      if (this.manifest.suffix) {
         req.url.pathname += this.manifest.suffix;
-        next();
-      });
-    }
-    // Route configuration parameters.
-    if (this.manifest.configParams) {
-      this.pre('request', function (req, next) {
+      }
+
+      // Route configuration parameters.
+      if (this.manifest.configParams) {
         var params = this.manifest.configParams;
         for (var key in params) {
           req.url.query[key] = this.options[this.manifest.configParams[key]];
         }
-        next();
-      });
-    }
-    // Route static parameters.
-    if (this.manifest.params) {
-      this.pre('request', function (req, next) {
+      }
+
+      // Route static parameters.
+      if (this.manifest.params) {
         var params = this.manifest.params;
         for (var key in params) {
           req.url.query[key] = params[key];
         }
-        next();
-      });
-    }
+      }
+
+      next();
+    }.bind(this));
   }
 
   ManifestClient.prototype.configure = function (options) {

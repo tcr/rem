@@ -3,12 +3,11 @@ var fs = require('fs')
 
 var rem = require('..');
 
-fs.readFile(path.join(__dirname, 'my_image.png'), function (err, buf) {
-  rem.connect('dropbox.com').prompt(function (err, user) {
-    user('files_put/sandbox/my_image.png').put(
-      'image/png', buf,
-      function (err, json) {
-        console.log('After upload:', err, json);
-      });
-  })
-});
+rem.connect('dropbox.com').prompt(function (err, user) {
+  fs.createReadStream(path.join(__dirname, 'my_image.png'))
+    .pipe(user('files_put/sandbox/my_image.png').put('image/png'))
+    .on('return', function (err, json) {
+      console.log('\nError code:', err);
+    })
+    .pipe(process.stdout);
+})

@@ -4,9 +4,10 @@ var env = exports;
 
 env.inherits = require('util').inherits;
 
-// EventEmitter
+// EventEmitter/Streams
 
 env.EventEmitter = require('events').EventEmitter;
+env.Stream = require('stream').Stream;
 
 // Stream.
 
@@ -178,7 +179,17 @@ env.lookupManifest = function (name, next) {
 
 env.isList = function (obj) {
   return Array.isArray(obj) || Buffer.isBuffer(obj);
-}
+};
+
+env.concatList = function (obj) {
+  return Buffer.concat(obj.map(function (arg) {
+    return Buffer.isBuffer(arg) ? arg : new Buffer(String(arg));
+  }))
+};
+
+// Next tick.
+
+env.nextTick = process.nextTick.bind(process);
 
 // Prompt strings.
 

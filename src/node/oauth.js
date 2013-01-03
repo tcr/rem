@@ -93,8 +93,18 @@ var OAuth1API = (function (_super) {
   }
 
   OAuth1API.prototype.send = function (req, stream, next) {
-    stream.on('end', function () {
-      req.body = stream.toBuffer();
+    if (!req.awaitingStream()) {
+      withBody.call(this, req.body);
+    } else {
+      stream.input.on('end', function () {
+        withBody.call(this, stream.input.toBuffer());
+      }.bind(this));
+      stream.input.cache = true;
+      stream.input.resume();
+    }
+
+    function withBody (body) {
+      req.body = body;
 
       // OAuth request.
       var args = [String(req.url), this.options.oauthAccessToken, this.options.oauthAccessSecret];
@@ -129,7 +139,7 @@ var OAuth1API = (function (_super) {
       }).on('error', function (err) {
         next(err, null);
       }).end();
-    });
+    }
   };
 
   OAuth1API.prototype.saveState = function (next) {
@@ -376,13 +386,23 @@ var OAuth2API = (function (_super) {
   }
 
   OAuth2API.prototype.send = function (req, stream, next) {
-    stream.on('end', function () {
-      req.body = stream.toBuffer();
+    if (!req.awaitingStream()) {
+      withBody.call(this, req.body);
+    } else {
+      stream.input.on('end', function () {
+        withBody.call(this, stream.input.toBuffer());
+      }.bind(this));
+      stream.input.cache = true;
+      stream.input.resume();
+    }
+
+    function withBody (body) {
+      req.body = body;
 
       // OAuth request.
       var args = [String(req.url), this.options.oauthAccessToken];
       if (req.method === 'PUT' || req.method === 'POST' || req.method == 'PATCH') {
-        args.push(req.body, req.headers['content-type']);
+        args.push(req.body, req.getHeader('content-type'));
       }
 
       if (rem.env.isList(req.body)) {
@@ -421,7 +441,7 @@ var OAuth2API = (function (_super) {
         stream.emit('data', data);
         stream.emit('end');
       }]));
-    });
+    };
   };
 
   OAuth2API.prototype.validate = function (next) {

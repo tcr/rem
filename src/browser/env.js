@@ -55,6 +55,69 @@ EventEmitter.prototype.setMaxListeners = function (maxListeners) {
 
 env.EventEmitter = EventEmitter;
 
+// Streams
+
+env.inherits(Stream, EventEmitter);
+
+function Stream () { }
+
+Stream.prototype.pipe = function (dest, options) {
+  var source = this;
+
+  function ondata (chunk) {
+    if (dest.writable) {
+      if (false === dest.write(chunk) && source.pause) {
+        source.pause();
+      }
+    }
+  }
+
+  function ondrain () {
+    if (source.readable && source.resume) {
+      source.resume();
+    }
+  }
+
+  var didOnEnd = false;
+  function onend () {
+    if (didOnEnd) return;
+    didOnEnd = true;
+    dest.end();
+  }
+
+  function onclose () {
+    if (didOnEnd) return;
+    didOnEnd = true;
+    if (typeof dest.destroy === 'function') dest.destroy();
+  }
+
+  function onerror (err) {
+    cleanup();
+    if (this.listeners('error').length === 0) {
+      throw err; // Unhandled stream error in pipe.
+    }
+  }
+
+  function cleanup() {
+    source.removeListener('data', ondata); dest.removeListener('drain', ondrain);
+    source.removeListener('end', onend); source.removeListener('close', onclose);
+    source.removeListener('error', onerror); dest.removeListener('error', onerror);
+    source.removeListener('end', cleanup); source.removeListener('close', cleanup);
+    dest.removeListener('end', cleanup); dest.removeListener('close', cleanup);
+  }
+
+  source.on('data', ondata); dest.on('drain', ondrain);
+  if ((!options || options.end !== false)) {
+    source.on('end', onend); source.on('close', onclose);
+  }
+  source.on('error', onerror); dest.on('error', onerror);
+  source.on('end', cleanup); source.on('close', cleanup);
+  dest.on('end', cleanup); dest.on('close', cleanup);
+
+  dest.emit('pipe', source);
+  return dest;
+};
+
 
 // Stream.
 
@@ -132,7 +195,7 @@ env.qs = {
 
 // Request
 
-env.inherits(HTTPResponse, env.EventEmitter);
+env.inherits(HTTPResponse, env.Stream);
 
 /** @constructor */
 function HTTPResponse (url, xhr) {
@@ -192,18 +255,19 @@ env.sendRequest = function (opts, agent, next) {
     }
   }
 
-  var body = [];
-  return {
-    write: function (data) {
-      body.push(data);
-    },
-    end: function (data) {
-      if (arguments.length > 0) {
-        body.push(data);
-      }
-      req.send(body.length ? body.join('') : null);
-    }
+  // Return a writable stream interface to our XHR.
+  var stream = new env.Stream, body = [];
+  stream.writeable = true;
+  stream.write = function (data) {
+    body.push(data);
   };
+  stream.end = function (data) {
+    if (data) {
+      body.push(data);
+    }
+    req.send(body.length ? body.join('') : null);
+  };
+  return stream;
 };
 
 // Path
@@ -253,6 +317,14 @@ env.lookupManifest = function (name, next) {
 env.isList = function (obj) {
   return Object.prototype.toString.call(obj) === "[object Array]";
 };
+
+env.concatList = function (obj) {
+  return obj.join('');
+};
+
+// Next Tick.
+
+env.nextTick = setTimeout;
 
 // Prompt strings.
 

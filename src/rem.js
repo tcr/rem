@@ -48,12 +48,13 @@ var Middleware = (function () {
     return this;
   };
 
+  // Ensured to happen on next event loop at earliest.
   Middleware.prototype.middleware = function () {
     var args = Array.prototype.slice.call(arguments), next = args.pop();
     var fns = (this._middleware || []).slice();
     function nextCallback() {
       if (fns.length == 0) {
-        next();
+        env.nextTick(next);
       } else {
         fns.shift().apply(this, args.concat([nextCallback.bind(this)]));
       }
@@ -270,14 +271,16 @@ var Route = (function () {
     var key = _[0], method = _[1];
     Route.prototype[key] = function (query, mime, body, next) {
       if (arguments.length == 3)
-        if (typeof query == 'string') next = body, body = mime, mime = this.defaultBodyMime;
-        else next = body, body = mime, mime = query, query = null;
-      if (arguments.length == 2) next = mime, body = query, mime = this.defaultBodyMime, query = null;
-      if (arguments.length == 1) next = query, body = null, mime = null, query = null;
+        if (typeof query == 'string') next = body, body = mime, mime = query, query = null, this.req._explicitMime = true;
+        else next = body, body = mime, mime = this.defaultBodyMime, this.req._explicitMime = false;
+      if (arguments.length == 2) next = mime, body = query, mime = this.defaultBodyMime, query = null, this.req._explicitMime = false;
+      if (arguments.length == 1)
+        if (typeof query == 'function') next = query, body = null, mime = null, query = null
+        else next = null, body = query, mime = this.defaultBodyMime, query = null, this.req._explicitMime = false;
       this.req.method = method;
       augment(this.req.url.query, query || {});
       if (body) {
-        this.req.setBody(this.req, mime, body)
+        this.req.setBody(mime, body)
       }
       return this.callback(next);
     };
@@ -288,49 +291,46 @@ var Route = (function () {
 })();
 
 /**
- * ClientStream
+ * CrossStream
  */
 
-env.inherits(BufferStream, require('stream').Stream);
+env.inherits(QueueStream, env.Stream);
 
-function BufferStream () {
+/** @construtor */
+function QueueStream () {
   this._buffer = [];
-  this.readable = this.writable = true;
-  this.paused = this.ended = this.endedEmitted = false;
+  this.readable = this.writable = this.paused = true;
+  this.ended = this.endedEmitted = this.cache = false;
+  this.index = 0;
 }
 
-BufferStream.prototype.pause = function () {
+QueueStream.prototype.pause = function () {
   this.paused = true;
 };
 
-BufferStream.prototype.resume = function () {
+QueueStream.prototype.resume = function () {
   this.paused = false;
-  if (this._buffer.length) {
-    this.emit('data', this.toBuffer());
+  while (this.index < this._buffer.length) {
+    this.emit('data', this._buffer[this.index++]);
+  }
+  if (!this.cache) {
     this._buffer = [];
+    this.index = 0;
   }
   if (this.ended && !this.endedEmitted) {
-    this.emit('end');
-    this.endedEmitted = true;
+    this.end();
   }
 };
 
-BufferStream.prototype.write = function (data) {
-  if (this.ended) {
-    throw new Error('Writing after stream ended.');
-  }
-  if (this.paused) {
-    this._buffer.push(data);
-  } else {
-    this.emit('data', data);
+QueueStream.prototype.write = function (data) {
+  this._buffer.push(data);
+  if (!this.paused) {
+    this.emit('data', this.cache ? data : this._buffer.pop());
   }
   return true;
 };
 
-BufferStream.prototype.end = function (data) {
-  if (this.ended) {
-    throw new Error('Ending after stream ended.');
-  }
+QueueStream.prototype.end = function (data) {
   if (data) {
     this.write(data);
   }
@@ -341,15 +341,16 @@ BufferStream.prototype.end = function (data) {
   }
 };
 
-BufferStream.prototype.toBuffer = function () {
-  return Buffer.concat(this._buffer);
+QueueStream.prototype.toBuffer = function () {
+  return env.concatList(this._buffer);
 }
 
 env.inherits(CrossStream, env.EventEmitter);
 
+/** @construtor */
 function CrossStream () {
-  this.input = new BufferStream(); this.writable = true;
-  this.output = new BufferStream(); this.readable = true;
+  this.input = new QueueStream(); this.writable = true;
+  this.output = new QueueStream(); this.readable = true;
 
   // Writeable input
   ['error', 'close', 'drain', 'pipe'].forEach(function (event) {
@@ -367,8 +368,6 @@ function CrossStream () {
     this[event] = this.output[event].bind(this.output);
   }.bind(this));
 }
-
-var ClientStream = CrossStream;
 
 /**
  * Client
@@ -410,9 +409,20 @@ var Client = (function () {
     var req = new ClientRequest();
     req.url.augment(url);
     return new Route(req, api.options.uploadFormat, function (next) {
-      var stream = new ClientStream();
-      stream.input.pause();
+      var stream = new CrossStream();
 
+      // Disambiguate between MIME type and string body in route invocation.
+      // TODO check that this is okay in all instances.
+      function disambiguateInvocation() {
+        if (req.body && !req._explicitMime) {
+          req.setHeader('Content-Type', req.body);
+          req.body = null;
+        }
+      }
+      stream.once('pipe', disambiguateInvocation);
+      env.nextTick(stream.removeListener.bind(stream, 'pipe', disambiguateInvocation));
+
+      // Call request middleware.
       api.middleware(req, function () {
         // Debug capability.
         if (api.debug) {
@@ -434,9 +444,13 @@ var Client = (function () {
       Client.prototype[format] = function () {
         return invoke(this, Array.prototype.slice.call(arguments), function (req, stream, next) {
           this.send(req, stream, debugResponse(this, function (err, res) {
+            stream.output.resume();
             res.pipe(stream.output);
+            stream.emit('response', res);
             rem.parsers[format](res, function (data) {
-              next && next.call(this, res.statusCode >= 400 ? res.statusCode : 0, data, res);
+              var err = res.statusCode >= 400 ? res.statusCode : 0;
+              next && next.call(this, err, data, res);
+              stream.emit('return', err, data, res);
             });
           }.bind(this)));
         }.bind(this));
@@ -447,9 +461,13 @@ var Client = (function () {
   Client.prototype.call = function () {
     return invoke(this, Array.prototype.slice.call(arguments), function (req, stream, next) {
       this.send(req, stream, debugResponse(this, function (err, res) {
-        stream.output.pipe(res);
+        stream.output.resume();
+        res.pipe(stream.output);
+        stream.emit('response', res);
         this.parseStream(req, res, function (data) {
-          next && next.call(this, res.statusCode >= 400 ? res.statusCode : 0, data, res);
+          var err = res.statusCode >= 400 ? res.statusCode : 0;
+          next && next.call(this, err, data, res);
+          stream.emit('return', err, data, res);
         }.bind(this));
       }.bind(this)));
     }.bind(this));

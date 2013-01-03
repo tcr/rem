@@ -21,7 +21,7 @@ rem.connect('github.com').prompt(function (err, user) {
 });
 ```
 
-`rem.connect('github.com')` creates a Github API Client. `prompt` asks you for API configuration and prompts you to log in. `user` is an authenticated API that can access endpoints like `user`, returning a JSON blob like `profile.name`.
+`rem.connect('github.com')` creates a Github API Client. `prompt` asks you for API configuration and prompts you to log in. `user` is an authenticated API that can access [endpoints like `'user'`](http://developer.github.com/v3/users/#get-the-authenticated-user), returning a JSON blob like `profile.name`.
 
 ## Documentation
 

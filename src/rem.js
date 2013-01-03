@@ -260,7 +260,8 @@ var Route = (function () {
   [['get', 'GET'], ['head', 'HEAD'], ['del', 'DELETE']].forEach(function (_) {
     var key = _[0], method = _[1];
     Route.prototype[key] = function (query, next) {
-      if (arguments.length == 1) next = query, query = null;
+      if (typeof query == 'function') next = query, query = null;
+
       this.req.method = method;
       augment(this.req.url.query, query || {});
       return this.callback(next);
@@ -269,18 +270,23 @@ var Route = (function () {
 
   [['post', 'POST'], ['put', 'PUT'], ['patch', 'PATCH']].forEach(function (_) {
     var key = _[0], method = _[1];
-    Route.prototype[key] = function (query, mime, body, next) {
-      if (arguments.length == 3)
-        if (typeof query == 'string') next = body, body = mime, mime = query, query = null, this.req._explicitMime = true;
-        else next = body, body = mime, mime = this.defaultBodyMime, this.req._explicitMime = false;
-      if (arguments.length == 2) next = mime, body = query, mime = this.defaultBodyMime, query = null, this.req._explicitMime = false;
-      if (arguments.length == 1)
-        if (typeof query == 'function') next = query, body = null, mime = null, query = null
-        else next = null, body = query, mime = this.defaultBodyMime, query = null, this.req._explicitMime = false;
+    Route.prototype[key] = function (A, B, C, D) {
+      var args = Array.prototype.slice.call(arguments);
+      var query, mime, body, next;
+      if (typeof args[args.length - 1] == 'function') next = args.pop();
+      // Query object must be disambiguated by (possibly null) MIME or body argument.
+      if (args.length >= 2 && typeof args[0] == 'object') query = args.shift();
+      if (args.length == 2) mime = args.shift();
+      body = args.shift();
+
+      // We default to "body" for ambiguous string arguments.
+      // If we receive a pipe, we later interpret argument as MIME.
+      this.req._explicitMime = mime != null;
+
       this.req.method = method;
       augment(this.req.url.query, query || {});
       if (body) {
-        this.req.setBody(mime, body)
+        this.req.setBody(mime || this.defaultBodyMime, body)
       }
       return this.callback(next);
     };

@@ -16,7 +16,7 @@ A Github API script that handles all configuration for you, in just 6 lines:
 var rem = require('rem');
 rem.connect('github.com').prompt(function (err, user) {
   user('user').get(function (err, profile) {
-    console.log(profile);
+    console.log('Hello', profile.name);
   });
 });
 ```

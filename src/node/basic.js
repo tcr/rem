@@ -37,7 +37,7 @@ var CookieSessionAPI = (function () {
   function CookieSessionAPI (options) {
     rem.ManifestClient.apply(this, arguments);
 
-    this.pre('request', function (req, next) {
+    this.use(function (req, next) {
       req.headers['cookie'] = this.options.cookies;
       next();
     });

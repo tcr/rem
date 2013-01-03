@@ -104,42 +104,6 @@ env.formatURL = function (url) {
   return a.href;
 };
 
-env.url = {
-  parse: function (str) {
-    var a = document.createElement('a');
-    a.href = str.indexOf(':') == -1
-      || (str.indexOf('?') > -1 && str.indexOf(':') > str.indexOf('?'))
-      || (str.indexOf('#') > -1 && str.indexOf(':') > str.indexOf('#'))
-      ? 'fake:' + str : str;
-    return {
-      protocol: a.protocol && a.protocol != 'fake:' ? a.protocol : null,
-      auth: a.auth || null,
-      hostname: a.hostname || null,
-      port: a.port || null,
-      pathname: a.pathname,
-      query: env.qs.parse(a.search || ''),
-      hash: a.hash ? decodeURIComponent(a.hash.substr(1)) : null
-    };
-  },
-
-  format: function (url) {
-    var a = document.createElement('a');
-    a.href = "fake:";
-    a.protocol = url.protocol || 'http:';
-    a.auth = url.auth;
-    a.hostname = url.hostname;
-    if (url.port) {
-      a.port = url.port;
-    }
-    a.pathname = url.pathname;
-    a.search = env.qs.stringify(url.query);
-    if (url.hash) {
-      a.hash = url.hash;
-    }
-    return a.href;
-  }
-};
-
 // Query string
 
 env.qs = {
@@ -211,9 +175,17 @@ env.sendRequest = function (opts, agent, next) {
     }
   }
 
-  // Send request.
   // Ignore "unsafe" headers so we don't pollute console logs.
-  var UNSAFE_HEADERS = ['host', 'user-agent', 'content-length'];
+  // See nsXMLHttpRequest.cpp for the origin of these.
+  var UNSAFE_HEADERS = [
+    "accept-charset", "accept-encoding", "access-control-request-headers",
+    "access-control-request-method", "connection", "content-length",
+    "cookie", "cookie2", "content-transfer-encoding", "date", "dnt",
+    "expect", "host", "keep-alive", "origin", "referer", "te", "trailer",
+    "transfer-encoding", "upgrade", "user-agent", "via"
+  ];
+
+  // Send request.
   req.open(opts.method, url, true);
   var headers = camelCaseHeaders(opts.headers);
   for (var k in headers) {
@@ -320,7 +292,7 @@ env.promptAuthentication = function (rem, api, opts, next) {
   rem.promptOAuth(api, opts, next);
 };
 
-// Creation handler.
+// Creation handler. Check transparent JSONP or CORS support.
 
 env.oncreate = function (api) {
   // !CORS && !JSONP
@@ -330,13 +302,13 @@ env.oncreate = function (api) {
 
   // JSONP
   if (!api.manifest.cors && api.manifest.jsonp) {
-    api.pre('request', function (req, next) {
+    api.use(function (req, next) {
       if (req.method != 'GET') {
         throw new Error('Only GET calls can be made from a JSONP API.');
       }
       // TODO this will fail.
       req.url.query[api.manifest.jsonp] = JSONP.getNextCallback();
-      next(req);
+      next();
     });
     api.send = function (req, next) {
       var url = env.url.format(req.url);

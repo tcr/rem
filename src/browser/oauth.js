@@ -86,7 +86,7 @@ var OAuth1API = (function (_super) {
     for (var key in req.query) {
       list.push([key, req.query[key]]);
     }
-    var url = rem.env.url.format(req.url).replace(/\?.*$/, '');
+    var url = String(req.url).replace(/\?.*$/, '');
     sendOAuthRequest(this, {
       url: url
     }, list, function (data) {

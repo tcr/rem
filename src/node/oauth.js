@@ -136,8 +136,8 @@ var OAuth1API = (function (_super) {
   };
 
   OAuth1API.prototype.saveSession = function (req, next) {
-    req.session.oauthAccessToken = this.options.oauthAccessToken;
-    req.session.oauthAccessSecret = this.options.oauthAccessSecret;
+    req.session[this.manifest.id + ':oauthAccessToken'] = this.options.oauthAccessToken;
+    req.session[this.manifest.id + ':oauthAccessSecret'] = this.options.oauthAccessSecret;
     return next(req);
   };
 
@@ -248,25 +248,26 @@ var OAuth1Authentication = (function () {
     var params = args.pop();
 
     this.start(params, function (url, oauthRequestToken, oauthRequestSecret, results) {
-      req.session.oauthRequestToken = oauthRequestToken;
-      req.session.oauthRequestSecret = oauthRequestSecret;
+      req.session[this.api.manifest.id + ':oauthRequestToken'] = oauthRequestToken;
+      req.session[this.api.manifest.id + ':oauthRequestSecret'] = oauthRequestSecret;
       next(url, results);
-    });
+    }.bind(this));
   };
 
   OAuth1Authentication.prototype.clearSession = function (req, next) {
-    delete req.session.oauthAccessToken;
-    delete req.session.oauthAccessSecret;
-    delete req.session.oauthRequestToken;
-    delete req.session.oauthRequestSecret;
+    delete req.session[this.api.manifest.id + ':oauthAccessToken'];
+    delete req.session[this.api.manifest.id + ':oauthAccessSecret'];
+    delete req.session[this.api.manifest.id + ':oauthRequestToken'];
+    delete req.session[this.api.manifest.id + ':oauthRequestSecret'];
     next();
   };
 
   OAuth1Authentication.prototype.session = function (req) {
-    if (req.session.oauthAccessToken && req.session.oauthAccessSecret) {
+    if (req.session[this.api.manifest.id + ':oauthAccessToken']
+      && req.session[this.api.manifest.id + ':oauthAccessSecret']) {
       return this.restore({
-        oauthAccessToken: req.session.oauthAccessToken,
-        oauthAccessSecret: req.session.oauthAccessSecret
+        oauthAccessToken: req.session[this.api.manifest.id + ':oauthAccessToken'],
+        oauthAccessSecret: req.session[this.api.manifest.id + ':oauthAccessSecret']
       });
     }
     return null;
@@ -286,7 +287,9 @@ var OAuth1Authentication = (function () {
           res.end();
           return;
         }
-        auth.complete(req.url, req.session.oauthRequestToken, req.session.oauthRequestSecret,
+        auth.complete(req.url,
+          req.session[auth.api.manifest.id + ':oauthRequestToken'],
+          req.session[auth.api.manifest.id + ':oauthRequestSecret'],
           function (err, user, results) {
             user.saveSession(req, function () {
               callback(req, res, next);
@@ -432,8 +435,8 @@ var OAuth2API = (function (_super) {
   };
 
   OAuth2API.prototype.saveSession = function (req, next) {
-    req.session.oauthAccessToken = this.options.oauthAccessToken;
-    req.session.oauthRefreshToken = this.options.oauthRefreshToken;
+    req.session[this.manifest.id + ':oauthAccessToken'] = this.options.oauthAccessToken;
+    req.session[this.manifest.id + ':oauthRefreshToken'] = this.options.oauthRefreshToken;
     return next(req);
   };
 
@@ -519,16 +522,16 @@ var OAuth2Authentication = (function () {
   };
 
   OAuth2Authentication.prototype.clearSession = function (req, cb) {
-    delete req.session.oauthAccessToken;
-    delete req.session.oauthRefreshToken;
+    delete req.session[this.api.manifest.id + ':oauthAccessToken'];
+    delete req.session[this.api.manifest.id + ':oauthRefreshToken'];
     return cb();
   };
 
   OAuth2Authentication.prototype.session = function (req) {
-    if (req.session.oauthAccessToken) {
+    if (req.session[this.api.manifest.id + ':oauthAccessToken']) {
       return this.restore({
-        oauthAccessToken: req.session.oauthAccessToken,
-        oauthRefreshToken: req.session.oauthRefreshToken
+        oauthAccessToken: req.session[this.api.manifest.id + ':oauthAccessToken'],
+        oauthRefreshToken: req.session[this.api.manifest.id + ':oauthRefreshToken']
       });
     }
     return null;
@@ -639,7 +642,7 @@ rem.promptOAuth = function (/* api, [params,] callback */) {
     app
       .use(connect.cookieParser())
       .use(connect.cookieSession({
-        secret: "!"
+        secret: Math.random()
       }));
 
     // OAuth callback.

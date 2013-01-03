@@ -43,15 +43,14 @@ var Middleware = (function () {
 
   function Middleware () { }
 
-  Middleware.prototype.pre = function (type, callback) {
-    this._middleware || (this._middleware = {});
-    (this._middleware[type] || (this._middleware[type] = [])).push(callback);
+  Middleware.prototype.use = function (callback) {
+    this._middleware || (this._middleware = []).push(callback);
     return this;
   };
 
-  Middleware.prototype.middleware = function (type) {
-    var args = Array.prototype.slice.call(arguments, 1), next = args.pop();
-    var fns = (this._middleware && this._middleware[type] || []).slice();
+  Middleware.prototype.middleware = function () {
+    var args = Array.prototype.slice.call(arguments), next = args.pop();
+    var fns = (this._middleware || []).slice();
     function nextCallback() {
       if (fns.length == 0) {
         next();
@@ -74,6 +73,7 @@ var Middleware = (function () {
 
 var envtype = (typeof module !== 'undefined' && module.exports) ? 'node' : 'browser';
 
+// Require the rem environment-specific code.
 if (envtype == 'node') {
   var env = require('./node/env');
 }
@@ -94,30 +94,13 @@ rem.env = env;
  * Data formats.
  */
 
-/*
-rem.url = function () {
-  var segments = Array.prototype.slice.call(arguments);
-  var query = typeof segments[segments.length - 1] == 'object' ? segments.pop() : {};
-  var url = remutil.url.parse(segments.shift());
-  url.pathname = remutil.path.join.apply(null, [url.pathname].concat(segments));
-  url.query = remutil.modify(url.query, query);
-
-  return new Route(remutil.request.create(url), 'form', function (req, next) {
-    req.headers['user-agent'] = req.headers['user-agent'] || rem.userAgent;
-    // TODO rem.globalAgent
-    remutil.request.send(req, next);
-    return req;
-  });
-};
-*/
-
 rem.serializer = {
   json: function (data) {
     return safeJSONStringify(data);
   },
 
   form: function (data) {
-
+    return env.qs.stringify(data);
   }
 };
 
@@ -169,78 +152,91 @@ rem.parsers = {
 
 // protocol://auth@hostname:port/pathname?query#hash
 
-Url = {
-
-  getHost: function (url) {
-    return url.hostname && (url.hostname + (url.port ? ':' + url.port : ''));
-  },
-
-  getPath: function (url) {
-    return url.pathname
-      + (env.qs.stringify(url.query) ? '?' + env.qs.stringify(url.query) : '')
-      + (url.hash ? '#' + encodeURIComponent(url.hash) : '');
+function URL (str) {
+  this.protocol = undefined;
+  this.auth = undefined;
+  this.hostname = undefined;
+  this.port = undefined;
+  this.pathname = undefined;
+  this.query = {};
+  this.hash = undefined;
+  if (str) {
+    this.parse(str);
   }
+}
 
+URL.prototype.getHost = function () {
+  return this.hostname && (this.hostname + (this.port ? ':' + this.port : ''));
+};
+
+URL.prototype.getPath = function () {
+  return this.pathname
+    + (env.qs.stringify(this.query) ? '?' + env.qs.stringify(this.query) : '')
+    + (this.hash ? '#' + encodeURIComponent(this.hash) : '');
+};
+
+URL.prototype.toString = function () {
+  return env.formatURL(this);
+};
+
+URL.prototype.augment = function (obj) {
+  this.protocol = obj.protocol || this.protocol;
+  this.auth = obj.auth || this.auth;
+  this.hostname = obj.hostname || this.hostname;
+  this.port = obj.port || this.port;
+  this.pathname = obj.pathname || this.pathname;
+  augment(this.query, obj.query); // special
+  this.hash = obj.hash || this.hash;
+};
+
+URL.prototype.parse = function (str) {
+  this.augment(env.parseURL(str));
 };
 
 /**
- * Request functions
+ * ClientRequest functions
  */
 
-Request = {
+function ClientRequest () {
+  this.method = 'GET';
+  this.headers = {};
+  this.url = new URL();
+  this.body = null;
+}
 
-  create: function (mod) {
-    return Request.update({
-      method: 'GET',
-      headers: {},
-      url: {
-        protocol: '',
-        hostname: '',
-        port: '',
-        pathname: '',
-        query: {},
-        hash: ''
-      },
-      body: null
-    }, mod);
-  },
+ClientRequest.prototype.setHeader = function (key, value) {
+  this.headers[String(key).toLowerCase()] = value;
+}
 
-  update: function (opts, mod) {
-    if (typeof mod == 'string') {
-      mod = env.url.parse(mod);
+ClientRequest.prototype.getHeader = function (key) {
+  return this.headers[String(key).toLowerCase()];
+}
+
+ClientRequest.prototype.removeHeader = function (key) {
+  return delete this.headers[String(key).toLowerCase()];
+}
+
+ClientRequest.prototype.setBody = function (type, body) {
+  // Expand payload shorthand.
+  if (typeof body == 'object' && !env.isList(body)) {
+    if (type == 'form' || type == 'application/x-www-form-urlencoded') {
+      type = 'application/x-www-form-urlencoded';
+      body = rem.serializer.form(body);
     }
-    if (mod.url) {
-      mod.url.query = augment(opts.url ? opts.url.query : {}, mod.url.query);
+    if (type == 'json' || type == 'application/json') {
+      type = 'application/json';
+      body = rem.serializer.json(body);
     }
-    mod.url = augment(opts.url || {}, mod.url || {});
-    return augment(opts, mod);
-  },
+  }
 
-  setBody: function (opts, type, body) {
-    // Expand payload shorthand.
-    if (typeof body == 'object' && !env.isList(body)) {
-      if (type == 'form' || type == 'application/x-www-form-urlencoded') {
-        type = 'application/x-www-form-urlencoded';
-        body = env.qs.stringify(body);
-      }
-      if (type == 'json' || type == 'application/json') {
-        type = 'application/json';
-        body = rem.serializer.json(body);
-      }
-    }
+  this.setHeader('Content-Length', body.length);
+  this.setHeader('Content-Type', type);
+  this.body = body;
+}
 
-    augment(opts.headers, {
-      'content-length': body.length,
-      'content-type': type
-    });
-    return augment(opts, {
-      body: body
-    });
-  },
-
-  send: null
-
-};
+ClientRequest.prototype.send = function (agent, next) {
+  return env.sendRequest(this, agent, next);
+}
 
 
 /**
@@ -257,52 +253,45 @@ var Route = (function () {
 
   Route.prototype.get = function (query, next) {
     if (arguments.length == 1) next = query, query = null;
-    return this.callback(Request.update(this.req, {
-      url: {
-        query: query || {}
-      },
-      method: 'GET'
-    }), next);
+    this.req.method = 'GET';
+    augment(this.req.url.query, query || {});
+    return this.callback(next);
   };
 
   Route.prototype.head = function (query, next) {
     if (arguments.length == 1) next = query, query = null;
-    return this.callback(Request.update(this.req, {
-      url: {
-        query: query || {}
-      },
-      method: 'HEAD'
-    }), next);
+    this.req.method = 'HEAD';
+    augment(this.req.url.query, query || {});
+    return this.callback(next);
   };
 
   Route.prototype.del = function (next) {
-    return this.callback(Request.update(this.req, {
-      method: 'DELETE'
-    }), next);
+    this.req.method = 'DELETE';
+    return this.callback(next);
   };
 
   Route.prototype.post = function (mime, body, next) {
     if (arguments.length == 2) next = body, body = mime, mime = this.defaultBodyMime;
     if (arguments.length == 1) next = mime, body = null, mime = this.defaultBodyMime;
-    return this.callback(Request.update(Request.setBody(this.req, mime, body), {
-      method: 'POST'
-    }), next);
+    this.req.method = 'POST';
+    this.req.setBody(this.req, mime, body)
+    return this.callback(next);
   };
 
   Route.prototype.patch = function (mime, body, next) {
     if (arguments.length == 2) next = body, body = mime, mime = this.defaultBodyMime;
     if (arguments.length == 1) next = mime, body = null, mime = this.defaultBodyMime;
-    return this.callback(Request.update(Request.setBody(this.req, mime, body), {
-      method: 'PATCH'
-    }), next);
+    this.req.method = 'PATCH';
+    this.req.setBody(this.req, mime, body)
+    return this.callback(next);
   };
 
   Route.prototype.put = function (mime, body, next) {
     if (arguments.length == 2) next = body, body = mime, mime = this.defaultBodyMime;
     if (arguments.length == 1) next = mime, body = null, mime = this.defaultBodyMime;
-    return this.callback(Request.update(Request.setBody(this.req, mime, body), {
-      method: 'PUT'
-    }), next);
+    this.req.method = 'PUT';
+    this.req.setBody(this.req, mime, body)
+    return this.callback(next);
   };
 
   return Route;
@@ -326,7 +315,7 @@ var Client = (function () {
     }
 
     // User agent.
-    this.pre('request', function (req, next) {
+    this.use(function (req, next) {
       req.headers['user-agent'] = req.headers['user-agent'] || rem.userAgent;
       next();
     });
@@ -344,16 +333,16 @@ var Client = (function () {
     var query = typeof segments[segments.length - 1] == 'object' ? segments.pop() : {};
     var url = ((segments[0] || '').indexOf('//') != -1 ? segments.shift() : (segments.length ? '/' : ''))
       + (segments.length ? env.joinPath.apply(null, segments) : '');
-    url = env.url.parse(url);
+    url = new URL(url);
     augment(url.query, query);
 
-    return new Route(Request.create({
-      url: url
-    }), api.options.uploadFormat, function (req, next) {
+    var req = new ClientRequest();
+    req.url.augment(url);
+    return new Route(req, api.options.uploadFormat, function (next) {
       api.middleware('request', req, function () {
         // Debug capability.
         if (api.debug) {
-          console.error(String(req.method).green, String(env.url.format(req.url)).grey,
+          console.error(String(req.method).green, String(req.url).grey,
             req.body ? ('[body: ' + (req.body.length ? req.body.length + ' bytes' : 'stream') + ']').grey : '');
         }
 
@@ -418,27 +407,7 @@ var Client = (function () {
   };
 
   Client.prototype.send = function (opts, next) {
-    var req = env.sendRequest(opts, this.agent, next);
-
-    /*
-    // Write out the body buffer or stream. 
-    if (opts.body != null) {
-      if (env.isList(opts.body) || typeof opts.body != 'object' || !opts.body.pipe) {
-        // Buffer.
-        console.log('is buffer');
-        req.write(opts.body);
-      } else {
-        // Stream.
-        console.log('is stream');
-        opts.body.pipe(req);
-      }
-    }
-    // Close connection if we don't need or have been supplied with a body.
-    if (['PUT', 'POST', 'PATCH'].indexOf(opts.method) == -1 || opts.body != null) {
-      req.end();
-    }
-    */
-
+    var req = opts.sendRequest(this.agent, next);
     if (opts.body != null) {
       req.write(opts.body);
     }
@@ -497,7 +466,7 @@ var ManifestClient = (function () {
     Client.call(this, options);
 
     // Response. Expand payload shorthand.
-    this.pre('request', function (req, next) {
+    this.use(function (req, next) {
       if (this.manifest.base) {
         // Determine base that matches the path name.
         var pathname = req.url.pathname.replace(/^(?!\/)/, '/')
@@ -517,16 +486,10 @@ var ManifestClient = (function () {
         // Update the request with base.
         // TODO check for matching base and use it.
         if (base && (req.url.protocol || req.url.hostname)) {
-          throw new Error('Cannot access full URL on an API with a base URL: ' + env.url.format(req.url));
+          throw new Error('Full URL request does not match API base URL: ' + String(req.url));
         }
-        Request.update(req, {
-          url: env.url.parse(base)
-        });
-        Request.update(req, {
-          url: {
-            pathname: env.joinPath(req.url.pathname, pathname)
-          }
-        });
+        req.url.augment(new URL(base)); // Incorporate base.
+        req.url.pathname = env.joinPath(req.url.pathname, pathname); // Append path.
       }
       // Route root pathname.
       if (this.manifest.basepath) {

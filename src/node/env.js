@@ -33,7 +33,6 @@ env.parseURL = function (str) {
     port: parsed.port || undefined,
     pathname: parsed.pathname || undefined,
     query: parsed.query || {},
-    search: parsed.search || undefined,
     hash: parsed.hash || undefined
   };
 };
@@ -52,7 +51,6 @@ env.url = {
       port: parsed.port || undefined,
       pathname: parsed.pathname || undefined,
       query: parsed.query || {},
-      search: parsed.search || undefined,
       hash: parsed.hash || undefined
     };
   },
@@ -97,20 +95,20 @@ env.sendRequest = function (opts, agent, next) {
     protocol: opts.url.protocol,
     hostname: opts.url.hostname,
     port: opts.url.port,
-    path: env.url.path(opts.url)
+    path: opts.url.getPath()
   });
 
   // Response.
   req.on('response', function (res) {
-    // Attempt to follow Location: headers.
-    if (((res.statusCode / 100) | 0) == 3 && res.headers['location'] && opts.redirect !== false) {
+    // Follow Location: headers if the option is enabled.
+    if (opts.redirect !== false && ((res.statusCode / 100) | 0) == 3 && res.headers['location']) {
       // Update the request with the new header and change the method.
       opts.method = 'GET';
-      opts.url = env.url.parse(res.headers['location']);
+      opts.url.parse(res.headers['location']);
       env.sendRequest(opts, agent, next)
         .end();
     } else {
-      res.url = env.url.format(opts.url); // Populate res.url property
+      res.url = String(opts.url); // Populate res.url property.
       next && next(null, res);
     }
   });

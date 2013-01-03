@@ -46,7 +46,7 @@ app.get('/', function(req, res) {
   }
 
   user('me').get(function (err, json) {
-    res.write('<h1>Welcome ' + json.name + '!</h1>');
+    res.write('<h1>Hello ' + json.name + '!</h1>');
     res.write('<p>Your profile:</p><pre>')
     res.write(JSON.stringify(json, null, '  '));
     res.end();

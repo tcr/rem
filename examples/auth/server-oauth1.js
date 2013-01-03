@@ -46,7 +46,7 @@ app.get('/', function (req, res) {
   }
    
   user('account/info').get(function (err, json) {
-    res.write('<h1>Welcome ' + json.display_name + '!</h1>');
+    res.write('<h1>Hello ' + json.display_name + '!</h1>');
     user('metadata/sandbox').get(function (err, json) {
       res.write('<p>Files in your App folder:</p><ul>');
 

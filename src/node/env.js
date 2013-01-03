@@ -71,14 +71,10 @@ var https = require('https');
 var querystring = require('querystring');
 
 // Some servers actually have an issue with this.
-function camelCaseHeaders (lower) {
-  var camel = {};
-  for (var key in lower) {
-    camel[key.replace(/(?:^|\b)\w/g, function (match) {
-      return match.toUpperCase();
-    })] = lower[key];
-  }
-  return camel;
+function camelCase (key) {
+  return key.replace(/(?:^|\b)\w/g, function (match) {
+    return match.toUpperCase();
+  });
 }
 
 env.sendRequest = function (opts, agent, next) {
@@ -91,7 +87,13 @@ env.sendRequest = function (opts, agent, next) {
   var req = (opts.url.protocol == 'https:' ? https : http).request({
     agent: agent || undefined,
     method: opts.method,
-    headers: camelCaseHeaders(opts.headers),
+    headers: (function () {
+      var headers = {};
+      for (var key in opts.headers) {
+        headers[camelCaseHeaders(key)] = opts.headers[key];
+      }
+      return headers;
+    })(),
     protocol: opts.url.protocol,
     hostname: opts.url.hostname,
     port: opts.url.port,

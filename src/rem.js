@@ -44,7 +44,7 @@ var Middleware = (function () {
   function Middleware () { }
 
   Middleware.prototype.use = function (callback) {
-    this._middleware || (this._middleware = []).push(callback);
+    (this._middleware || (this._middleware = [])).push(callback);
     return this;
   };
 
@@ -147,11 +147,11 @@ rem.parsers = {
 
 
 /** 
- * URL functions
+ * URL model
+ * protocol://auth@hostname:port/pathname?query#hash
  */
 
-// protocol://auth@hostname:port/pathname?query#hash
-
+/** @constructor */
 function URL (str) {
   this.protocol = undefined;
   this.auth = undefined;
@@ -197,6 +197,7 @@ URL.prototype.parse = function (str) {
  * ClientRequest functions
  */
 
+/** @constructor */
 function ClientRequest () {
   this.method = 'GET';
   this.headers = {};
@@ -339,7 +340,7 @@ var Client = (function () {
     var req = new ClientRequest();
     req.url.augment(url);
     return new Route(req, api.options.uploadFormat, function (next) {
-      api.middleware('request', req, function () {
+      api.middleware(req, function () {
         // Debug capability.
         if (api.debug) {
           console.error(String(req.method).green, String(req.url).grey,
@@ -363,11 +364,11 @@ var Client = (function () {
       Client.prototype[format] = function () {
         return invoke(this, Array.prototype.slice.call(arguments), function (req, next) {
           this.send(req, debugResponse(this, function (err, res) {
-            this.middleware('response', req, res, function () {
+            //this.middleware('response', req, res, function () {
               rem.parsers[format](res, function (data) {
                 next && next.call(this, res.statusCode >= 400 ? res.statusCode : 0, data, res);
               });
-            });
+            //});
           }.bind(this)));
         }.bind(this));
       }
@@ -377,11 +378,11 @@ var Client = (function () {
   Client.prototype.call = function () {
     return invoke(this, Array.prototype.slice.call(arguments), function (req, next) {
       this.send(req, debugResponse(this, function (err, res) {
-        this.middleware('response', req, res, function () {
+        //this.middleware('response', req, res, function () {
           this.parseStream(req, res, function (data) {
             next && next.call(this, res.statusCode >= 400 ? res.statusCode : 0, data, res);
           }.bind(this));
-        }.bind(this));
+        //}.bind(this));
       }.bind(this)));
     }.bind(this));
   };
@@ -407,7 +408,7 @@ var Client = (function () {
   };
 
   Client.prototype.send = function (opts, next) {
-    var req = opts.sendRequest(this.agent, next);
+    var req = opts.send(this.agent, next);
     if (opts.body != null) {
       req.write(opts.body);
     }

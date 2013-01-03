@@ -89,7 +89,7 @@ env.parseURL = function (str) {
 
 env.formatURL = function (url) {
   var a = document.createElement('a');
-  a.href = "fake:";
+  a.href = "http://example.com";
   a.protocol = url.protocol || 'http:';
   a.auth = url.auth;
   a.hostname = url.hostname;
@@ -97,7 +97,9 @@ env.formatURL = function (url) {
     a.port = url.port;
   }
   a.pathname = url.pathname;
-  a.search = env.qs.stringify(url.query);
+  if (env.qs.stringify(url.query)) {
+    a.search = env.qs.stringify(url.query);
+  }
   if (url.hash) {
     a.hash = url.hash;
   }
@@ -132,6 +134,7 @@ env.qs = {
 
 env.inherits(HTTPResponse, env.EventEmitter);
 
+/** @constructor */
 function HTTPResponse (url, xhr) {
   var len = 0;
   this.url = url;
@@ -152,19 +155,15 @@ function HTTPResponse (url, xhr) {
 }
 
 // Some servers actually have an issue with this.
-function camelCaseHeaders (lower) {
-  var camel = {};
-  for (var key in lower) {
-    camel[key.replace(/(?:^|\b)\w/g, function (match) {
-      return match.toUpperCase();
-    })] = lower[key];
-  }
-  return camel;
+function camelCase (key) {
+  return key.replace(/(?:^|\b)\w/g, function (match) {
+    return match.toUpperCase();
+  });
 }
 
 env.sendRequest = function (opts, agent, next) {
   // Format url.
-  var url = env.url.format(opts.url);
+  var url = String(opts.url);
 
   // Create XHR.
   var req = new XMLHttpRequest();
@@ -187,10 +186,9 @@ env.sendRequest = function (opts, agent, next) {
 
   // Send request.
   req.open(opts.method, url, true);
-  var headers = camelCaseHeaders(opts.headers);
-  for (var k in headers) {
+  for (var k in opts.headers) {
     if (UNSAFE_HEADERS.indexOf(k) == -1) {
-      req.setRequestHeader(k, headers[k]);
+      req.setRequestHeader(camelCase(k), opts.headers[k]);
     }
   }
 
@@ -311,7 +309,7 @@ env.oncreate = function (api) {
       next();
     });
     api.send = function (req, next) {
-      var url = env.url.format(req.url);
+      var url = String(req.url);
       JSONP.get(url, null, false, function (json) {
         // Now fake a whole request.
         var res = new EventEmitter();

@@ -25,7 +25,7 @@ rem.connect('github.com', 3.0).prompt({
         if (!err) {
           user('gists').post({
             description: 'temp gist',
-            public: true,
+            public: false,
             files: {
               "rem.txt": {
                 content: text

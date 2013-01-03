@@ -211,14 +211,14 @@ try {
   console.error('Invalid .remconf settings, overwriting file.'.yellow);
 }
 
-env.promptConfiguration = function (rem, api, next) {
+env.promptConfiguration = function (rem, api, callback) {
   var read = require('read');
 
   // Check for existing configuration values.
   if (api.manifest.configuration.every(function (key) {
       return key in api.options;
     })) {
-    return next();
+    return callback(null, api);
   }
 
   // Load configuration.
@@ -229,7 +229,7 @@ env.promptConfiguration = function (rem, api, next) {
         api.options[key] = config[key];
       });
       console.log(('Loaded API configuration from ' + env.config.stores.file.file).yellow);
-      return next();
+      return callback(null, api);
     }
   }
 
@@ -284,11 +284,11 @@ env.promptConfiguration = function (rem, api, next) {
       env.config.save(function (err, json) {
         console.log(('Your credentials are saved to the configuration file ' + env.config.stores.file.file).yellow);
         console.log(('Use "rem ' + api.manifest.id + ' config [clear]" to manage these values.\n').yellow);
-        next();
+        next(null, api);
       });
     } else {
       console.log('');
-      next();
+      next(null, api);
     }
   }
 };

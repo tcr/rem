@@ -284,11 +284,11 @@ env.promptConfiguration = function (rem, api, callback) {
       env.config.save(function (err, json) {
         console.log(('Your credentials are saved to the configuration file ' + env.config.stores.file.file).yellow);
         console.log(('Use "rem ' + api.manifest.id + ' config [clear]" to manage these values.\n').yellow);
-        next(null, api);
+        callback(null, api);
       });
     } else {
       console.log('');
-      next(null, api);
+      callback(null, api);
     }
   }
 };

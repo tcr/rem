@@ -1,0 +1,12 @@
+{
+  "2": {
+    "id": "tumblr.com",
+    "name": "Tumblr",
+    "docs": "http://www.tumblr.com/docs/en/api/v2",
+    "control": "http://www.tumblr.com/oauth/apps",
+    "configuration": ["key"],
+
+    "base": "http://api.tumblr.com/v2",
+    "configParams": {"api_key": "key"}
+  }
+}

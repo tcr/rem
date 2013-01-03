@@ -8,22 +8,27 @@ To use Rem with Node.js, install using `npm`:
 
 To use in the browser, include `lib/rem.js`.
 
-## Example
+## Getting Started
 
-A Github API script that handles all configuration for you, in just 6 lines:
+A Node.js script to access and configure the Github API, in just 6 lines:
 
 ```javascript
 var rem = require('rem');
 rem.connect('github.com').prompt(function (err, user) {
   user('user').get(function (err, profile) {
-    console.log('Hello', profile.name);
+    console.log('Hello %s!', profile.name);
   });
 });
 ```
 
+`rem.connect('github.com')` creates a Github API Client. `prompt` asks you for API configuration and prompts you to log in. `user` is an authenticated API that can access endpoints like `user`, returning a JSON blob like `profile.name`.
+
 ## Documentation
 
-In progress. Check out the Wiki.
+* Check out [the Wiki](https://github.com/tcr/rem-js/wiki) for API documentation.
+* See [examples for popular REST services](https://github.com/tcr/rem-js/tree/master/examples/services).
+* See [examples of using Rem to authenticate users](https://github.com/tcr/rem-js/tree/master/examples/auth) with Express, from the command line, or out-of-band login.
+* See [examples of using Rem in the browser](https://github.com/tcr/rem-js/tree/master/examples/browser).
 
 ## License
 

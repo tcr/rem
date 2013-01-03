@@ -283,7 +283,7 @@ env.promptConfiguration = function (rem, api, next) {
       });
       env.config.save(function (err, json) {
         console.log(('Your credentials are saved to the configuration file ' + env.config.stores.file.file).yellow);
-        console.log(('Use "rem config ' + api.manifest.id + '" to manage these values.\n').yellow);
+        console.log(('Use "rem ' + api.manifest.id + ' config [clear]" to manage these values.\n').yellow);
         next();
       });
     } else {

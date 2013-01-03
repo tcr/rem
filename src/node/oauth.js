@@ -138,7 +138,6 @@ var OAuth1API = (function (_super) {
   OAuth1API.prototype.saveSession = function (req, next) {
     req.session.oauthAccessToken = this.options.oauthAccessToken;
     req.session.oauthAccessSecret = this.options.oauthAccessSecret;
-    req.user = this;
     return next(req);
   };
 
@@ -219,30 +218,28 @@ var OAuth1Authentication = (function () {
       verifier = rem.env.url.parse(verifier).query.oauth_verifier;
     }
 
-    var auth = this;
+    var oauth = this;
     return this.oauth.getOAuthAccessToken(oauthRequestToken, oauthRequestSecret, verifier,
       function (err, oauthAccessToken, oauthAccessSecret, results) {
         if (err) {
           console.error("Error authorizing OAuth endpoint: " + JSON.stringify(err));
           next(err, null, results);
         } else {
-          return auth.loadState({
+          next(err, oauth.restore({
             oauthAccessToken: oauthAccessToken,
             oauthAccessSecret: oauthAccessSecret,
-            oauthRedirect: auth.oauthRedirect
-          }, function (user) {
-            next(err, user, results);
-          });
+            oauthRedirect: oauth.oauthRedirect
+          }), results);
         }
       });
   };
 
-  OAuth1Authentication.prototype.loadState = function (data, next) {
+  OAuth1Authentication.prototype.restore = function (data) {
     var options = clone(this.api.options);
     options.oauthAccessToken = data.oauthAccessToken;
     options.oauthAccessSecret = data.oauthAccessSecret;
     options.oauthRedirect = this.oauthRedirect;
-    return next(callable(new OAuth1API(this.api.manifest, options)));
+    return callable(new OAuth1API(this.api.manifest, options));
   };
 
   OAuth1Authentication.prototype.startSession = function (req) {
@@ -265,14 +262,14 @@ var OAuth1Authentication = (function () {
     next();
   };
 
-  OAuth1Authentication.prototype.loadSession = function (req, next) {
-    this.loadState({
-      oauthAccessToken: req.session.oauthAccessToken,
-      oauthAccessSecret: req.session.oauthAccessSecret
-    }, function (user) {
-      req.user = user;
-      next();
-    });
+  OAuth1Authentication.prototype.session = function (req) {
+    if (req.session.oauthAccessToken && req.session.oauthAccessSecret) {
+      return this.restore({
+        oauthAccessToken: req.session.oauthAccessToken,
+        oauthAccessSecret: req.session.oauthAccessSecret
+      });
+    }
+    return null;
   };
 
   OAuth1Authentication.prototype.middleware = function (callback) {
@@ -296,11 +293,7 @@ var OAuth1Authentication = (function () {
             });
           });
       } else {
-        if (req.session.oauthAccessToken && req.session.oauthAccessSecret) {
-          auth.loadSession(req, next);
-        } else {
-          next();
-        }
+        next();
       }
     };
   };
@@ -441,7 +434,6 @@ var OAuth2API = (function (_super) {
   OAuth2API.prototype.saveSession = function (req, next) {
     req.session.oauthAccessToken = this.options.oauthAccessToken;
     req.session.oauthRefreshToken = this.options.oauthRefreshToken;
-    req.user = this;
     return next(req);
   };
 
@@ -500,22 +492,20 @@ var OAuth2Authentication = (function () {
         console.error('Error authorizing OAuth2 endpoint:', JSON.stringify(err));
         return cb(err, null);
       } else {
-        return _this.loadState({
+        cb(null, _this.restore({
           oauthAccessToken: oauthAccessToken,
           oauthRefreshToken: oauthRefreshToken
-        }, function (user) {
-          return cb(0, user);
-        });
+        }));
       }
     });
   };
 
-  OAuth2Authentication.prototype.loadState = function (data, next) {
+  OAuth2Authentication.prototype.restore = function (data) {
     var options = clone(this.api.options);
     options.oauthAccessToken = data.oauthAccessToken;
     options.oauthRefreshToken = data.oauthRefreshToken;
     options.oauthRedirect = this.oauthRedirect;
-    return next(callable(new OAuth2API(this.api.manifest, options)));
+    return callable(new OAuth2API(this.api.manifest, options));
   };
 
   OAuth2Authentication.prototype.startSession = function () {
@@ -534,14 +524,14 @@ var OAuth2Authentication = (function () {
     return cb();
   };
 
-  OAuth2Authentication.prototype.loadSession = function (req, cb) {
-    return this.loadState({
-      oauthAccessToken: req.session.oauthAccessToken,
-      oauthRefreshToken: req.session.oauthRefreshToken
-    }, function (user) {
-      req.user = user;
-      return cb();
-    });
+  OAuth2Authentication.prototype.session = function (req) {
+    if (req.session.oauthAccessToken) {
+      return this.restore({
+        oauthAccessToken: req.session.oauthAccessToken,
+        oauthRefreshToken: req.session.oauthRefreshToken
+      });
+    }
+    return null;
   };
 
   OAuth2Authentication.prototype.middleware = function (callback) {
@@ -551,26 +541,22 @@ var OAuth2Authentication = (function () {
     return function (req, res, next) {
       var url = rem.env.url.parse(req.url);
       if (url.pathname === pathname) {
-        if (!this.oauth) {
+        if (!auth.oauth) {
           res.writeHead(302, {
             'Location': '/'
           });
           res.end();
           return;
         }
-        this.complete(req.url, function (err, user, results) {
+        auth.complete(req.url, function (err, user, results) {
           user.saveSession(req, function () {
             callback(req, res, next);
           });
         });
       } else {
-        if (req.session.oauthAccessToken != null) {
-          this.loadSession(req, next);
-        } else {
-          next();
-        }
+        next();
       }
-    }.bind(this);
+    };
   };
 
   return OAuth2Authentication;
@@ -633,15 +619,14 @@ rem.promptOAuth = function (/* api, [params,] callback */) {
   // Check config for cached credentials, ensuring parameters are the same.
   var cred = rem.env.config.get(api.manifest.id + ':auth');
   if (cred && similar(cred.params || {}, params)) {
-    oauth.loadState(cred, function (user) {
-      user.validate(function (validated) {
-        if (!validated) {
-          requestCredentials();
-        } else {
-          console.error(("Loaded API authentication credentials from " + rem.env.config.stores.file.file).yellow);
-          cb(null, user);
-        }
-      })
+    var user = oauth.restore(cred);
+    user.validate(function (validated) {
+      if (!validated) {
+        requestCredentials();
+      } else {
+        console.error(("Loaded API authentication credentials from " + rem.env.config.stores.file.file).yellow);
+        cb(null, user);
+      }
     });
   } else {
     requestCredentials();
@@ -660,7 +645,8 @@ rem.promptOAuth = function (/* api, [params,] callback */) {
     // OAuth callback.
     app.use(oauth.middleware(function (req, res, next) {
       // Save to nconf.
-      req.user.saveState(function (state) {
+      var user = oauth.session(req);
+      user.saveState(function (state) {
         state.params = params;
         rem.env.config.set(api.manifest.id + ':auth', state);
         rem.env.config.save();
@@ -673,7 +659,7 @@ rem.promptOAuth = function (/* api, [params,] callback */) {
         process.nextTick(function () {
           req.connection.destroy()
           server.close();
-          cb(null, req.user);
+          cb(null, user);
         });
       });
     }));

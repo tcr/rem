@@ -36,26 +36,29 @@ app.get('/logout/', function (req, res) {
   });
 });
 
-// When the user is logged in, the "req.user" variable is set. This is
-// an authenticated api you can use to make REST calls.
-app.get('/', function(req, res) {
-  if (!req.user) {
-    res.end("<h1><a href='/login/'>Log in with OAuth</a></h1>");
+// When the user is logged in, oauth.session(req) returns an authenticated API.
+// Use this to make REST calls on behalf of the user.
+app.get('/', function (req, res) {
+  var user = oauth.session(req);
+  if (!user) {
+    res.end("<h1><a href='/login/'>Log in to Dropbox with OAuth</a></h1>");
     return;
   }
    
-  res.write('<h1>Welcome Dropbox user!</h1>');
-  req.user('metadata/sandbox').get(function(err, json) {
-    res.write('<p>Files in your App folder:</p><ul>');
+  user('account/info').get(function (err, json) {
+    res.write('<h1>Welcome ' + json.display_name + '!</h1>');
+    user('metadata/sandbox').get(function (err, json) {
+      res.write('<p>Files in your App folder:</p><ul>');
 
-    // Get a URL for each file, then end the connection.
-    var i = json.contents.length;
-    json.contents.forEach(function (file) {
-      req.user('media/sandbox', file.path).get(function (err, json) {
-        res.write('<li><a href="' + json.url + '">' + file.path + '</a></li>');
-        if (--i == 0) {
-          res.end('</ul><hr><a href="/logout/">Logout?</a>');
-        }
+      // Get a URL for each file, then end the connection.
+      var i = json.contents.length;
+      json.contents.forEach(function (file) {
+        user('media/sandbox', file.path).get(function (err, json) {
+          res.write('<li><a href="' + json.url + '">' + file.path + '</a></li>');
+          if (--i == 0) {
+            res.end('</ul><hr><a href="/logout/">Logout?</a>');
+          }
+        });
       });
     });
   });

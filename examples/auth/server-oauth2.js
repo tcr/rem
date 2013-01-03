@@ -36,18 +36,19 @@ app.get('/logout/', function (req, res) {
   });
 });
 
-// When the user is logged in, the "req.user" variable is set. This is
-// an authenticated api you can use to make REST calls.
+// When the user is logged in, oauth.session(req) returns an authenticated API.
+// Use this to make REST calls on behalf of the user.
 app.get('/', function(req, res) {
-  if (!req.user) {
-    res.end("<h1><a href='/login/'>Log in with OAuth</a></h1>");
+  var user = oauth.session(req);
+  if (!user) {
+    res.end("<h1><a href='/login/'>Log in to Facebook with OAuth</a></h1>");
     return;
   }
 
-  res.write('<h1>Welcome Facebook user!</h1>');
-  req.user('me').get(function(err, json) {
+  user('me').get(function (err, json) {
+    res.write('<h1>Welcome ' + json.name + '!</h1>');
     res.write('<p>Your profile:</p><pre>')
-    res.write(JSON.stringify(json, null, '\t'));
+    res.write(JSON.stringify(json, null, '  '));
     res.end();
   });
 });

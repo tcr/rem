@@ -217,12 +217,11 @@ rem.parsers = {
   xml: function (res, next) {
     rem.parsers.text(res, function (data) {
       try {
-        env.parseXML(res, next);
+        env.parseXML(data, next);
       } catch (e) {
         console.error('Invalid XML:', data);
         throw e;
       }
-      next(data);
     });
   }
 };

@@ -1,0 +1,11 @@
+{
+	"2": {
+		"id": "musicbrainz.org",
+		"base": "http://musicbrainz.org/ws/2/",
+		"docs": "http://musicbrainz.org/doc/XML_Web_Service/Version_2",
+
+		"params": {
+			"fmt": "json"
+		}
+	}
+}

@@ -2,15 +2,17 @@ var rem = require('rem');
 var fs = require('fs');
 var read = require('read');
 
-var tw = rem.load('twitter', 1.0).prompt();
+var tw = rem.connect('twitter.com', 1.0);
 var oauth = rem.oauth(tw);
 
-oauth.start(function(url, token, secret) {
-  console.log("Visit:", url);
-  read({
-    prompt: "Type in the verification code: "
-  }, function(err, verifier) {
-    oauth.complete(verifier, token, secret, authorized);
+tw.promptConfiguration(function () {
+  oauth.start(function(url, token, secret) {
+    console.log("Visit:", url);
+    read({
+      prompt: "Type in the verification code: "
+    }, function(err, verifier) {
+      oauth.complete(verifier, token, secret, authorized);
+    });
   });
 });
 

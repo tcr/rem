@@ -1,137 +1,60 @@
 /*
 
-REM: Remedial Rest Interfaces
-
-A library that simplifies and normalizes access to REST APIs.
+Rem: REST easy.
+A flexible HTTP library for using the web like an API.
 
 Reference:
 http://roy.gbiv.com/untangled/2008/rest-apis-must-be-hypertext-driven
 
 */
 
-// Namespace.
-var rem = typeof exports == 'undefined' ? this.rem = {} : exports;
-
-var remutil = typeof require == 'undefined' ? remutil : require('./remutil');
-rem.util = remutil;
-
-// Configuration.
-rem.USER_AGENT = 'Mozilla/5.0 (compatible; REMbot/1.0; +http://remlib.org/)';
-rem.CONFIG_FILE = null;
-
 /**
- * A hypermedia resource.
+ * Utilities
  */
 
-var HyperMedia = (function () {
+function callable (obj) {
+  var f = function () {
+    return f.call.apply(f, arguments);
+  };
+  f.__proto__ = obj;
+  return f;
+};
 
-  function HyperMedia (api, res, data) {
-    this.api = api;
-    this.res = res;
-    this.data = data;
+function clone (obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
 
-    this.type = api.format;
-    if (this.type == 'json') {
-      this.json = data;
-    } else if (this.type == 'xml') {
-      this.xml = data;
+function augment (c, b) {
+  for (var k in b) {
+    if (Object.prototype.hasOwnProperty.call(b, k) && b[k] != null) {
+      c[k] = b[k];
     }
-    this.statusCode = Number(this.res.statusCode);
-    this.err = this.statusCode > 400 ? this.statusCode : 0;
   }
+  return c;
+}
 
-  return HyperMedia;
-
-})();
-
-/**
- * A route endpoint.
- */
-
-var Route = (function () {
-
-  function Route (req, defaultBodyMime, middleware) {
-    this.req = req;
-    this.defaultBodyMime = defaultBodyMime || 'json';
-    this.middleware = middleware;
-  }
-
-  Route.prototype.get = function (query, next) {
-    if (typeof query == 'function') {
-      next = query;
-      query = null;
-    }
-    return this.middleware(remutil.modify(remutil.request.url(this.req, {
-      query: query || {}
-    }), {
-      method: 'GET'
-    }), next);
-  };
-
-  Route.prototype.head = function (query, next) {
-    if (typeof query == 'function') {
-      next = query;
-      query = null;
-    }
-    return this.middleware(remutil.modify(remutil.request.url(this.req, {
-      query: query || {}
-    }), {
-      method: 'HEAD'
-    }), next);
-  };
-
-  Route.prototype.post = function (mime, body, next) {
-    if (typeof body == 'function') {
-      next = body;
-      body = mime;
-      mime = this.defaultBodyMime;
-    }
-    return this.middleware(remutil.modify(remutil.request.body(this.req, mime, body), {
-      method: 'POST'
-    }), next);
-  };
-
-  Route.prototype.put = function (mime, body, next) {
-    if (typeof body == 'function') {
-      next = body;
-      body = mime;
-      mime = this.defaultBodyMime;
-    }
-    return this.middleware(remutil.modify(remutil.request.body(this.req, mime, body), {
-      method: 'PUT'
-    }), next);
-  };
-
-  Route.prototype.del = function (next) {
-    return this.middleware(remutil.modify(this.req, {
-      method: 'DELETE'
-    }), next);
-  };
-
-  return Route;
-
-})();
-
-/**
- * Middleware.
- */
+function safeJSONStringify (data) {
+  return JSON.stringify(data).replace(/[\u007f-\uffff]/g, function (c) {
+    return "\\u" + ("0000" + c.charCodeAt(0).toString(16)).slice(-4);
+  });
+}
 
 var Middleware = (function () {
 
   function Middleware () { }
 
-  Middleware.prototype.pre = function (type, callback) {
-    this._middleware || (this._middleware = {});
-    (this._middleware[type] || (this._middleware[type] = [])).push(callback);
+  Middleware.prototype.use = function (callback) {
+    (this._middleware || (this._middleware = [])).push(callback);
     return this;
   };
 
-  Middleware.prototype.middleware = function (type) {
-    var args = Array.prototype.slice.call(arguments, 1), next = args.pop();
-    var fns = (this._middleware && this._middleware[type] || []).slice();
+  // Ensured to happen on next event loop at earliest.
+  Middleware.prototype.middleware = function () {
+    var args = Array.prototype.slice.call(arguments), next = args.pop();
+    var fns = (this._middleware || []).slice();
     function nextCallback() {
       if (fns.length == 0) {
-        next();
+        env.nextTick(next);
       } else {
         fns.shift().apply(this, args.concat([nextCallback.bind(this)]));
       }
@@ -144,391 +67,666 @@ var Middleware = (function () {
 
 })();
 
+
 /**
- * API
+ * Environment
  */
 
-var API = (function () {
+var envtype = (typeof module !== 'undefined' && module.exports) ? 'node' : 'browser';
 
-  remutil.inherits(API, Middleware);
+// Require the rem environment-specific code.
+if (envtype == 'node') {
+  var env = require('./node/env');
+}
 
-  function API (manifest, opts) {
-    this.manifest = manifest;
-    this.opts = opts || {};
 
-    // Load key, secret, format.
-    this.key = this.opts.key;
-    this.secret = this.opts.secret;
-    this.format = this.opts.format || 'json';
-    this.agent = this.opts.agent; // HTTP agents. Node-only.
+/**
+ * Module
+ */
 
-    // Load format-specific options from the manifest.
-    if (!this.manifest.formats) {
-      this.manifest.formats = {json: {}};
-    }
-    if (!this.manifest.formats[this.format]) {
-      throw new Error("Format \"" + this.format + "\" not available. Please specify an available format in the options parameter.");
-    }
-    this.manifest = remutil.modify(this.manifest, this.manifest.formats[this.format]);
+var rem = (envtype == 'node') ? exports : this.rem = {};
 
-    // User agent.
-    this.pre('request', function (req, next) {
-      req.headers['user-agent'] = req.headers['user-agent'] || rem.USER_AGENT;
-      next();
+// Configuration.
+rem.userAgent = 'Mozilla/5.0 (compatible; REMbot/1.0; +http://remlib.org/)';
+
+rem.env = env;
+
+/**
+ * Data formats.
+ */
+
+rem.serializer = {
+  json: function (data) {
+    return safeJSONStringify(data);
+  },
+
+  form: function (data) {
+    return env.qs.stringify(data);
+  }
+};
+
+rem.parsers = {
+  stream: function (res, next) {
+    next(res);
+  },
+
+  binary: function (res, next) {
+    env.consumeStream(res, next);
+  },
+
+  text: function (res, next) {
+    env.consumeStream(res, function (data) {
+      // Strip BOM signatures.
+      next(String(data).replace(/^\uFEFF/, ''));
     });
-    // Route root pathname.
-    if (this.manifest.basepath) {
-      this.pre('request', function (req, next) {
-        req.url.pathname = this.manifest.basepath + req.url.pathname;
-        next();
-      });
-    }
-    // Route suffix.
-    if (this.manifest.suffix) {
-      this.pre('request', function (req, next) {
-        req.url.pathname += this.manifest.suffix;
-        next();
-      });
-    }
-    // Route configuration parameters.
-    if (this.manifest.configParams) {
-      this.pre('request', function (req, next) {
-        var params = this.manifest.configParams;
-        for (var key in params) {
-          req.url.query[key] = this.opts[this.manifest.configParams[key]];
-        }
-        next();
-      });
-    }
-    // Route static parameters.
-    if (this.manifest.params) {
-      this.pre('request', function (req, next) {
-        var params = this.manifest.params;
-        for (var key in params) {
-          req.url.query[key] = params[key];
-        }
-        next();
-      });
-    }
-  }
+  },
 
-  // Configuration prompt.
-
-  API.prototype.configure = function(cont) {
-    return cont();
-  };
-
-  // Callable function.
-
-  function invoke (api, segments, send) {
-    var query = typeof segments[segments.length - 1] == 'object' ? segments.pop() : {};
-    var pathname = remutil.path.join.apply(null, segments);
-
-    return new Route(remutil.request.create({
-      query: query, pathname: pathname
-    }), api.manifest.uploadFormat, middleware);
-
-    function middleware (req, next) {
-      // Expand payload shorthand.
-      api.configure(function () {
-        // Determine base that matches the path name.
-        var pathname = req.url.pathname.replace(/^(?!\/)/, '/')
-        // Bases can be fixed or an array of (pattern, base) tuples.
-        if (Array.isArray(api.manifest.base)) {
-          var base = '';
-          api.manifest.base.some(function (tuple) {
-            if (typeof tuple == 'string') {
-              // TODO this functionality should be removed
-              base = tuple;
-              return true;
-            } else {
-              if (pathname.match(new RegExp(tuple[0]))) {
-                base = tuple[1];
-                return true;
-              }
-            }
-          });
-        } else {
-          var base = String(api.manifest.base);
-        }
-        // Update the request with base.
-        req = remutil.request.url(req, remutil.url.parse(base))
-        req = remutil.request.url(req, {
-          pathname: remutil.path.join(req.url.pathname, pathname)
-        });
-
-        // Debug flag.
-        if (api.debug) {
-          console.error('[URL]', remutil.url.format(req.url));
-        }
-
-        // Apply manifest filters.
-        api.middleware('request', req, function () {
-          send(req, next);
-        });
-      });
-
-      return req;
-    }
-  }
-
-  API.prototype.stream = function () {
-    return invoke(this, Array.prototype.slice.call(arguments), function (req, next) {
-      this.send(req, function (err, res) {
-        this.middleware('response', req, res, function () {
-          next(req, res);
-        });
-      }.bind(this));
-    }.bind(this));
-  };
-
-  API.prototype.call = function () {
-    return invoke(this, Array.prototype.slice.call(arguments), function (req, next) {
-      this.send(req, function (err, res) {
-        if (err) {
-          next && next(err, null, res);
-        } else {
-          this.middleware('response', req, res, function () {
-            this.parseStream(req, res, function (data) {
-              var media = new HyperMedia(this, res, data);
-              next && next(media.err, media.data, media);
-            }.bind(this));
-          }.bind(this));
-        }
-      }.bind(this));
-    }.bind(this));
-  };
-
-  API.prototype.parseStream = function (req, res, next) {
-    remutil.consumeStream(res, function (data) {
-      // Parse body
+  json: function (res, next) {
+    rem.parsers.text(res, function (data) {
       try {
-        if (this.format === 'xml') {
-          data = rem.parsers.xml(String(data));
-        } else {
-          // Remove the BOM when it's been included.
-          if (data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf) {
-            data = data.slice(3);
-          }
-          data = JSON.parse(String(data));
-        }
+        data = JSON.parse(String(data));
       } catch (e) {
-        console.warn('Could not parse data for type ' + this.format + ':', e)
+        console.error('Invalid JSON:', data);
+        throw e;
       }
       next(data);
+    });
+  },
+
+  xml: function (res, next) {
+    rem.parsers.text(res, function (data) {
+      try {
+        env.parseXML(res, next);
+      } catch (e) {
+        console.error('Invalid XML:', data);
+        throw e;
+      }
+      next(data);
+    });
+  }
+};
+
+
+/** 
+ * URL model
+ * protocol://auth@hostname:port/pathname?query#hash
+ */
+
+/** @constructor */
+function URL (str) {
+  this.protocol = undefined;
+  this.auth = undefined;
+  this.hostname = undefined;
+  this.port = undefined;
+  this.pathname = undefined;
+  this.query = {};
+  this.hash = undefined;
+  if (str) {
+    this.parse(str);
+  }
+}
+
+URL.prototype.getHost = function () {
+  return this.hostname && (this.hostname + (this.port ? ':' + this.port : ''));
+};
+
+URL.prototype.getPath = function () {
+  return this.pathname
+    + (env.qs.stringify(this.query) ? '?' + env.qs.stringify(this.query) : '')
+    + (this.hash ? '#' + encodeURIComponent(this.hash) : '');
+};
+
+URL.prototype.toString = function () {
+  return env.formatURL(this);
+};
+
+URL.prototype.augment = function (obj) {
+  this.protocol = obj.protocol || this.protocol;
+  this.auth = obj.auth || this.auth;
+  this.hostname = obj.hostname || this.hostname;
+  this.port = obj.port || this.port;
+  this.pathname = obj.pathname || this.pathname;
+  augment(this.query, obj.query); // special
+  this.hash = obj.hash || this.hash;
+};
+
+URL.prototype.parse = function (str) {
+  this.augment(env.parseURL(str));
+};
+
+/**
+ * ClientRequest functions
+ */
+
+/** @constructor */
+function ClientRequest () {
+  this.method = 'GET';
+  this.headers = {};
+  this.url = new URL();
+  this.body = null;
+}
+
+ClientRequest.prototype.setHeader = function (key, value) {
+  this.headers[String(key).toLowerCase()] = value;
+}
+
+ClientRequest.prototype.getHeader = function (key) {
+  return this.headers[String(key).toLowerCase()];
+}
+
+ClientRequest.prototype.removeHeader = function (key) {
+  return delete this.headers[String(key).toLowerCase()];
+}
+
+ClientRequest.prototype.setBody = function (type, body) {
+  // Expand payload shorthand.
+  if (typeof body == 'object' && !env.isList(body)) {
+    if (type == 'form' || type == 'application/x-www-form-urlencoded') {
+      type = 'application/x-www-form-urlencoded';
+      body = rem.serializer.form(body);
+    }
+    if (type == 'json' || type == 'application/json') {
+      type = 'application/json';
+      body = rem.serializer.json(body);
+    }
+  }
+
+  this.setHeader('Content-Length', body.length);
+  this.setHeader('Content-Type', type);
+  this.body = body;
+}
+
+ClientRequest.prototype.send = function (agent, next) {
+  return env.sendRequest(this, agent, next);
+}
+
+ClientRequest.prototype.awaitingStream = function () {
+  return !this.body && ['PUT', 'POST', 'PATCH'].indexOf(this.method) != -1;
+}
+
+
+/**
+ * An HTTP route.
+ */
+
+var Route = (function () {
+
+  function Route (req, defaultBodyMime, callback) {
+    this.req = req;
+    this.defaultBodyMime = defaultBodyMime || 'json';
+    this.callback = callback;
+  }
+
+  [['get', 'GET'], ['head', 'HEAD'], ['del', 'DELETE']].forEach(function (_) {
+    var key = _[0], method = _[1];
+    Route.prototype[key] = function (query, next) {
+      if (arguments.length == 1) next = query, query = null;
+      this.req.method = method;
+      augment(this.req.url.query, query || {});
+      return this.callback(next);
+    };
+  });
+
+  [['post', 'POST'], ['put', 'PUT'], ['patch', 'PATCH']].forEach(function (_) {
+    var key = _[0], method = _[1];
+    Route.prototype[key] = function (query, mime, body, next) {
+      if (arguments.length == 3)
+        if (typeof query == 'string') next = body, body = mime, mime = query, query = null, this.req._explicitMime = true;
+        else next = body, body = mime, mime = this.defaultBodyMime, this.req._explicitMime = false;
+      if (arguments.length == 2) next = mime, body = query, mime = this.defaultBodyMime, query = null, this.req._explicitMime = false;
+      if (arguments.length == 1)
+        if (typeof query == 'function') next = query, body = null, mime = null, query = null
+        else next = null, body = query, mime = this.defaultBodyMime, query = null, this.req._explicitMime = false;
+      this.req.method = method;
+      augment(this.req.url.query, query || {});
+      if (body) {
+        this.req.setBody(mime, body)
+      }
+      return this.callback(next);
+    };
+  });
+
+  return Route;
+
+})();
+
+/**
+ * CrossStream
+ */
+
+env.inherits(QueueStream, env.Stream);
+
+/** @constructor */
+function QueueStream () {
+  this._buffer = [];
+  this.readable = this.writable = this.paused = true;
+  this.ended = this.endedEmitted = this.cache = false;
+  this.index = 0;
+}
+
+QueueStream.prototype.pause = function () {
+  this.paused = true;
+};
+
+QueueStream.prototype.resume = function () {
+  this.paused = false;
+  while (this.index < this._buffer.length) {
+    this.emit('data', this._buffer[this.index++]);
+  }
+  if (!this.cache) {
+    this._buffer = [];
+    this.index = 0;
+  }
+  if (this.ended && !this.endedEmitted) {
+    this.end();
+  }
+};
+
+QueueStream.prototype.write = function (data) {
+  this._buffer.push(data);
+  if (!this.paused) {
+    this.emit('data', this.cache ? data : this._buffer.pop());
+  }
+  return true;
+};
+
+QueueStream.prototype.end = function (data) {
+  if (data) {
+    this.write(data);
+  }
+  this.ended = true;
+  if (!this.paused) {
+    this.emit('end');
+    this.endedEmitted = true;
+  }
+};
+
+QueueStream.prototype.toBuffer = function () {
+  return env.concatList(this._buffer);
+}
+
+env.inherits(CrossStream, env.EventEmitter);
+
+/** @constructor */
+function CrossStream () {
+  this.input = new QueueStream(); this.writable = true;
+  this.output = new QueueStream(); this.readable = true;
+
+  // Writeable input
+  ['error', 'close', 'drain', 'pipe'].forEach(function (event) {
+    this.on(event, this.input.emit.bind(this.input, event));
+  }.bind(this));
+  ['write', 'end'].forEach(function (event) {
+    this[event] = this.input[event].bind(this.input);
+  }.bind(this));
+  
+  // Readable output
+  ['error', 'close', 'data', 'end'].forEach(function (event) {
+    this.output.on(event, this.emit.bind(this, event));
+  }.bind(this));
+  ['pause', 'resume', 'pipe'].forEach(function (event) {
+    this[event] = this.output[event].bind(this.output);
+  }.bind(this));
+}
+
+/**
+ * Client
+ */
+
+var Client = (function () {
+
+  env.inherits(Client, Middleware);
+
+  function Client (options) {
+    // Defaults.
+    this.options = { format: 'json' };
+    if (options) {
+      this.configure(options);
+    }
+
+    // User agent.
+    this.use(function (req, next) {
+      req.headers['user-agent'] = req.headers['user-agent'] || rem.userAgent;
+      next();
+    });
+  }
+
+  Client.prototype.configure = function (options) {
+    augment(this.options, options);
+
+    return this;
+  };
+
+  // Invoke as method.
+  function invoke (api, segments, send) {
+    // Combine query arguments and URL path segments.
+    var query = typeof segments[segments.length - 1] == 'object' ? segments.pop() : {};
+    var url = ((segments[0] || '').indexOf('//') != -1 ? segments.shift() : (segments.length ? '/' : ''))
+      + (segments.length ? env.joinPath.apply(null, segments) : '');
+    url = new URL(url);
+    augment(url.query, query);
+
+    var req = new ClientRequest();
+    req.url.augment(url);
+    return new Route(req, api.options.uploadFormat, function (next) {
+      var stream = new CrossStream();
+
+      // Disambiguate between MIME type and string body in route invocation.
+      // TODO check that this is okay in all instances.
+      function disambiguateInvocation() {
+        if (req.body && !req._explicitMime) {
+          req.setHeader('Content-Type', req.body);
+          req.body = null;
+        }
+      }
+      stream.once('pipe', disambiguateInvocation);
+      env.nextTick(stream.removeListener.bind(stream, 'pipe', disambiguateInvocation));
+
+      // Call request middleware.
+      api.middleware(req, function () {
+        // Debug capability.
+        if (api.debug) {
+          console.error(String(req.method).green, String(req.url).grey,
+            req.body ? ('[body: ' + (req.body.length ? req.body.length + ' bytes' : 'stream') + ']').grey : '');
+        }
+
+        send(req, stream, next);
+      });
+
+      return stream;
+    });
+  }
+
+  // Formats
+
+  for (var format in rem.parsers) {
+    (function (format) {
+      Client.prototype[format] = function () {
+        return invoke(this, Array.prototype.slice.call(arguments), function (req, stream, next) {
+          this.send(req, stream, debugResponse(this, function (err, res) {
+            stream.output.resume();
+            res.pipe(stream.output);
+            stream.emit('response', res);
+            rem.parsers[format](res, function (data) {
+              var err = res.statusCode >= 400 ? res.statusCode : 0;
+              next && next.call(this, err, data, res);
+              stream.emit('return', err, data, res);
+            });
+          }.bind(this)));
+        }.bind(this));
+      }
+    })(format);
+  }
+
+  Client.prototype.call = function () {
+    return invoke(this, Array.prototype.slice.call(arguments), function (req, stream, next) {
+      this.send(req, stream, debugResponse(this, function (err, res) {
+        stream.output.resume();
+        res.pipe(stream.output);
+        stream.emit('response', res);
+        this.parseStream(req, res, function (data) {
+          var err = res.statusCode >= 400 ? res.statusCode : 0;
+          next && next.call(this, err, data, res);
+          stream.emit('return', err, data, res);
+        }.bind(this));
+      }.bind(this)));
     }.bind(this));
   };
 
-  API.prototype.send = function (req, next) {
-    remutil.request.send(req, this.agent, next);
-  }
-
-  // Root request shorthands.
-
-  API.prototype.get = function () {
-    var route = this('');
-    return route.get.apply(route, arguments);
-  };
-
-  API.prototype.post = function () {
-    var route = this('');
-    return route.post.apply(route, arguments);
-  };
-
-  API.prototype.del = function () {
-    var route = this('');
-    return route.del.apply(route, arguments);
-  };
-
-  API.prototype.head = function () {
-    var route = this('');
-    return route.head.apply(route, arguments);
-  };
-
-  API.prototype.put = function () {
-    var route = this('');
-    return route.put.apply(route, arguments);
-  };
-
-  API.prototype.patch = function () {
-    var route = this('');
-    return route.patch.apply(route, arguments);
-  };
-
-  // Configuration/prompt
-
-  if (typeof require !== 'undefined') {
-
-    API.prototype._promptConfig = false;
-
-    API.prototype._persistConfig = false;
-
-    API.prototype.prompt = function (_persistConfig) {
-      this._persistConfig = _persistConfig || _persistConfig == null;
-      this._promptConfig = true;
-      return this;
-    };
-
-    API.prototype.configure = function (cont) {
-      //return cont();
-
-      var nconf = require('nconf');
-      var read = require('read');
-      var clc = require('cli-color');
-      var path = require('path');
-
-      // Configuration.
-      var configFile = rem.CONFIG_FILE || path.join(require('osenv').home(), '.remconf');
-      nconf.file(configFile);
-
-      // Optionally prompt for API key/secret.
-      var k, v, _ref, _ref1,
-        _this = this;
-      if (this.key) {
-        return cont();
-      }
-      if (!(this._promptConfig && this.manifest.id)) {
-        throw new Error('No API key specified.');
-      }
-      if (this._persistConfig && nconf.get(this.manifest.id)) {
-        _ref = nconf.get(this.manifest.id);
-        for (k in _ref) {
-          v = _ref[k];
-          this.opts[k] = v;
+  function debugResponse (api, next) {
+    return function (err, res) {
+      if (api.debug) {
+        if (res) {
+          console.error(String(res.statusCode).green,
+            ('[type: ' + String(res.headers['content-type']) + ']').grey,
+            ('[body: ' + String(res.headers['content-length']) + ']').grey);
+        } else {
+          console.error('ERROR'.green, String(err).grey)
         }
-        _ref1 = this.opts, this.key = _ref1.key, this.secret = _ref1.secret;
-        return cont();
       }
-      console.log(clc.yellow('Initializing API keys for ' + this.manifest.id + ' on first use.'));
-      if (this.manifest.control) {
-        console.log(clc.yellow('Register for an API key here:'), this.manifest.control);
-      }
-      this.middleware('configure', function () {
-        read({
-          prompt: clc.yellow(this.manifest.id + ' API key: ')
-        }, function (err, key) {
-          _this.key = key;
-          _this.opts.key = key;
-          if (!key) {
-            console.error(clc.red('ERROR:'), 'No API key specified, aborting.');
-            process.exit(1);
-          }
-          return read({
-            prompt: clc.yellow(_this.manifest.id + ' API secret (if provided): ')
-          }, function (err, secret) {
-            _this.secret = secret;
-            _this.opts.secret = secret;
-            if (_this._persistConfig) {
-              nconf.set(_this.manifest.id + ':key', key);
-              nconf.set(_this.manifest.id + ':secret', secret);
-              return nconf.save(function (err, json) {
-                console.log(clc.yellow('Your credentials are saved to the configuration file ' + configFile));
-                console.log(clc.yellow('Edit that file to update or change your credentials.\n'));
-                return cont();
-              });
-            } else {
-              console.log('');
-              return cont();
-            }
-          });
-        });
-      });
+
+      next.apply(this, arguments);
     };
-    
   }
+
+  Client.prototype.parseStream = function (req, res, next) {
+    rem.parsers[this.options.format](res, next);
+  };
+
+  Client.prototype.send = function (req, stream, next) {
+    var reqstream = req.send(this.agent, next);
+    if (!req.awaitingStream()) {
+      if (req.body != null) {
+        reqstream.write(req.body);
+      }
+      reqstream.end();
+    } else {
+      stream.input.pipe(reqstream);
+      stream.input.resume();
+    }
+  };
 
   // Throttling.
 
-  API.prototype.throttle = function (rate) {
-    var api = this, queue = [], rate = rate || 1;
+  Client.prototype.throttle = function (rate) {
+    // Unthrottle with api.throttle(null)
+    if (rate == null) {
+      this.send = this._send || this.send;
+      return this;
+    }
 
+    var queue = [];
     setInterval(function () {
       var fn = queue.shift();
       if (fn) {
         fn();
       }
-    }, 1000/rate)
+    }, 1000 / rate)
 
-    var oldsend = api.send;
-    api.send = function () {
+    // Replace send function.
+    if (!this._send) {
+      this._send = this.send;
+    }
+    this.send = function () {
       var args = arguments;
       queue.push(function () {
-        oldsend.apply(api, args);
-      });
+        this._send.apply(this, args);
+      }.bind(this));
     };
 
-    return api;
+    return this;
   };
 
   // Return.
 
-  return API;
+  return Client;
 
 })();
+
+// Manifest Client.
+
+var ManifestClient = (function () {
+
+  env.inherits(ManifestClient, Client);
+
+  function ManifestClient (manifest, options) {
+    // Define manifst.
+    this.manifest = manifest;
+    this.manifest.configuration = this.manifest.configuration || ['key', 'secret'];
+
+    // Initialize client and options.
+    Client.call(this, options);
+
+    // Response. Expand payload shorthand.
+    this.use(function (req, next) {
+      if (this.manifest.base) {
+        // Determine base that matches the path name.
+        var pathname = req.url.pathname.replace(/^(?!\/)/, '/')
+        // Bases can be fixed or an array of (pattern, base) tuples.
+        if (env.isList(this.manifest.base)) {
+          var base = '';
+          this.manifest.base.some(function (tuple) {
+            if (pathname.match(new RegExp(tuple[0]))) {
+              base = tuple[1];
+              return true;
+            }
+          });
+        } else {
+          var base = String(this.manifest.base);
+        }
+        
+        // Update the request with base.
+        // TODO check for matching base and use it.
+        if (base && (req.url.protocol || req.url.hostname)) {
+          throw new Error('Full URL request does not match API base URL: ' + String(req.url));
+        }
+        req.url.augment(new URL(base)); // Incorporate base.
+        req.url.pathname = env.joinPath(req.url.pathname, pathname); // Append path.
+      }
+      // Route root pathname.
+      if (this.manifest.basepath) {
+        req.url.pathname = this.manifest.basepath + req.url.pathname;
+      }
+      // Route suffix.
+      if (this.manifest.suffix) {
+        req.url.pathname += this.manifest.suffix;
+      }
+
+      // Route configuration parameters.
+      if (this.manifest.configParams) {
+        var params = this.manifest.configParams;
+        for (var key in params) {
+          req.url.query[key] = this.options[this.manifest.configParams[key]];
+        }
+      }
+
+      // Route static parameters.
+      if (this.manifest.params) {
+        var params = this.manifest.params;
+        for (var key in params) {
+          req.url.query[key] = params[key];
+        }
+      }
+
+      next();
+    }.bind(this));
+  }
+
+  ManifestClient.prototype.configure = function (options) {
+    augment(this.options, options);
+
+    // Load format-specific options from the manifest.
+    if (this.manifest.formats) {
+      if (!this.manifest.formats[this.options.format]) {
+        throw new Error("Format \"" + this.options.format + "\" is not explicitly defined in this manifest. Please specify an available format this API supports.");
+      }
+      augment(this.manifest, this.manifest.formats[this.options.format]);
+    }
+    // Upload format.
+    this.options.uploadFormat = this.options.uploadFormat || this.manifest.uploadFormat;
+
+    return this;
+  };
+
+  // Prompt.
+
+  ManifestClient.prototype.promptAuthentication = function (opts, next) {
+    if (!next) next = opts, opts = {};
+    env.promptAuthentication(rem, this, opts, next);
+    return this;
+  };
+
+  ManifestClient.prototype.promptConfiguration = function (next) {
+    env.promptConfiguration(rem, this, next);
+    return this;
+  };
+
+  ManifestClient.prototype.prompt = function (opts, next) {
+    if (!next) next = opts, opts = {};
+    this.promptConfiguration(function () {
+      this.promptAuthentication(opts, function () {
+        console.error('');
+        next.apply(this, arguments);
+      });
+    }.bind(this));
+    return this;
+  };
+
+  return ManifestClient;
+
+})();
+
 
 /**
  * Public API.
  */
 
-rem.API = API;
+rem.Client = Client;
+rem.ManifestClient = ManifestClient;
 
-rem.create = function (manifest, opts) {
+rem.createClient = function (manifest, opts) {
   if (typeof manifest == 'string') {
     manifest = { base: manifest };
   }
-  return remutil.callable(new API(manifest, opts));
+  var api = callable(new ManifestClient(manifest, opts));
+  rem.env.oncreate(api);
+  return api;
 };
 
-// TODO Be able to load manifest files locally.
-rem.load = function (name, version, opts) {
-  manifest = remutil.lookup(name);
+function createFromManifest (manifest, path, version, opts) {
   version = version = '*' ? Number(version) || '*' : '*';
   if (!manifest || !manifest[version]) {
     if (version == '*' && manifest) {
       var version = Object.keys(manifest).sort().pop();
       if (!manifest[version]) {
-        throw new Error('Unable to find API ' + JSON.stringify(name) + ' version ' + JSON.stringify(Number(version)) + '. For the latest API, use "*".');
+        throw new Error('Unable to find API ' + JSON.stringify(path) + ' version ' + JSON.stringify(Number(version)) + '. For the latest API, use "*".');
       }
     } else if (manifest) {
-      throw new Error('Unable to find API ' + JSON.stringify(name) + ' version ' + JSON.stringify(Number(version)) + '. For the latest API, use "*".');
+      throw new Error('Unable to find API ' + JSON.stringify(path) + ' version ' + JSON.stringify(Number(version)) + '. For the latest API, use "*".');
     } else {
-      throw new Error('Unable to find API ' + JSON.stringify(name) + '.');
+      throw new Error('Unable to find API ' + JSON.stringify(path) + '.');
     }
   }
   manifest = manifest[version];
-  manifest.id = name;
   manifest.version = version;
-  return rem.create(manifest, opts);
+  return rem.createClient(manifest).configure(opts);
+}
+
+rem.connect = function (path, version, opts) {
+  return createFromManifest(env.lookupManifestSync(path), path, version, opts);
 };
 
-rem.url = function () {
-  var segments = Array.prototype.slice.call(arguments);
-  var query = typeof segments[segments.length - 1] == 'object' ? segments.pop() : {};
-  var url = remutil.url.parse(segments.shift());
-  url.pathname = remutil.path.join.apply(null, [url.pathname].concat(segments));
-  url.query = remutil.modify(url.query, query);
-
-  return new Route(remutil.request.create(url), 'form', function (req, next) {
-    req.headers['user-agent'] = req.headers['user-agent'] || rem.USER_AGENT;
-    // TODO rem.globalAgent
-    remutil.request.send(req, next);
-    return req;
-  });
-};
-
-rem.consume = remutil.consumeStream;
-
-rem.parsers = {
-  xml: function (data) {
-    try {
-      var libxmljs = require('libxmljs');
-    } catch (e) {
-      throw new Error('Please install libxmljs in order to parse XML APIs.')
-    }
-    return libxmljs.parseXmlString(data);
+rem.connectAsync = function (path, version, opts, next) {
+  if (!next) {
+    next = opts;
+    opts = {};
   }
+  env.lookupManifest(path, function (err, manifest) {
+    if (err) {
+      next(err);
+    } else {
+      next(null, createFromManifest(manifest, path, version, opts));
+    }
+  })
 };
 
+/**
+ * Default client request methods.
+ */
+
+var defaultClient = new rem.Client();
+
+Object.keys(rem.parsers).forEach(function (format) {
+  rem[format] = function () {
+    return defaultClient[format].apply(defaultClient, arguments);
+  };
+});
+
+/**
+ * Polling
+ */
+
+/*
 function jsonpath (obj, keys) {
   keys.split('.').filter(String).forEach(function (key) {
     obj = obj && obj[key];
@@ -563,13 +761,15 @@ rem.poll = function (endpoint, opts, callback) {
     });
   }, interval);
 }
+*/
 
-if (typeof require != 'undefined') {
+/**
+ * Includes
+ */
+
+if (envtype == 'node') {
   // Authentication methods.
-  require('./oauth');
-  require('./aws');
-  require('./session');
-
-  // TODO more than Oauth.
-  rem.console = rem.oauthConsole;
+  require('./node/oauth');
+  require('./node/basic');
+  //require('./node/aws');
 }

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <h1>Rem Browser Dropbox Example</h1>
+  <button onclick="store.clear()">Clear Credentials</button>
+
+  <div id="account" style="display: none">
+    <h2>Welcome</h2>
+  </div>
+  <div id="songs"></div>
+  </body>
+
+
+<script src="../../lib/rem.js"></script>
+<script src='http://code.jquery.com/jquery.js'></script>
+<script>
+
+rem.connectAsync('dropbox.com', 1.0, function (err, api) {
+  api.prompt(function (err, user) {
+    user('account/info').get(function (err, json) {
+      $('#account').show().find('h2').text('Welcome, ' + json.display_name)
+    });
+
+    user('metadata/sandbox').get(function (err, json) {
+      json.contents.forEach(function (f) {
+        if (f.mime_type == 'audio/mpeg') {
+          user('media/sandbox', f.path).get(function (err, json) {
+            $('#songs').append('<h3>' + f.path + '</h3>')
+            $('#songs').append('<audio src="' + json.url + '" controls>No audio!</audio>')
+          });
+        }
+      });
+    })
+  });
+});
+
+</script>
+</html>

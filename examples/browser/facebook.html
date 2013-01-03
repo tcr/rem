@@ -1,0 +1,29 @@
+<!-- Run http-server from the root rem-js/ directory -->
+<html>
+  <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.2/css/bootstrap-combined.min.css" rel="stylesheet">
+
+  <body class="container-fluid">
+    <h1>Rem Browser Facebook Example</h1>
+    <form id="fetch">
+      <b>Username or Graph ID:</b> <input id="username" value="timcameronryan">
+      <button class="btn btn-success">Fetch Information</button>
+    </form>
+
+    <pre id="user"></pre>
+  </body>
+
+  <script src="../../lib/rem.js"></script>
+  <script src='http://code.jquery.com/jquery.js'></script>
+  <script>
+
+rem.connectAsync('facebook.com', 1.0, function (err, api) {
+  $('#fetch').on('submit', function () {
+    api($('#username').val()).get(function (err, json) {
+      $('#user').text(JSON.stringify(json, null, '  '));
+    });
+    return false;
+  })
+});
+
+  </script>
+</html>

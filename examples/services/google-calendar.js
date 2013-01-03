@@ -1,10 +1,8 @@
 var rem = require('../..');
 
 // Create Google Calendar API, prompting for key/secret.
-var gcal = rem.load('google-calendar', 3.0).prompt();
-
 // Authenticate user via the console.
-rem.console(gcal, function (err, user) {
+rem.connect('calendar.google.com', 3.0).prompt(function (err, user) {
   user('users/me/calendarList').get(function(err, json) {
     if (err) { console.log(err); return; }
 

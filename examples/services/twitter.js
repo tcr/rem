@@ -1,11 +1,8 @@
 var rem = require('../..');
 var read = require('read');
 
-// Create Twitter API, prompting for key/secret.
-var tw = rem.load('twitter', 1.0).prompt();
-
-// Authenticate user via the console.
-rem.console(tw, function (err, user) {
+// Create Twitter API, prompting for configuration values.
+rem.connect('twitter.com', 1.0).prompt(function (err, user) {
 
   // Read tweets from our timeline.
   console.log('Latest tweets from your timeline:');
@@ -16,7 +13,9 @@ rem.console(tw, function (err, user) {
 
     // Post a tweet.
     read({prompt: "Enter a status to tweet: "}, function (err, txt) {
-      user('statuses/update').post({status: txt}, function (err, json) {
+      user('statuses/update').post({
+        status: txt
+      }, function (err, json) {
         console.log(err, json);
       });
     });

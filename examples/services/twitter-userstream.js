@@ -5,7 +5,7 @@ var clarinet = require('clarinet');
 
 // Create Twitter API, prompting for key/secret.
 // NOTE: Requires Twitter API 1.1
-var tw = rem.load('twitter', 1.1).prompt();
+var tw = rem.connect('twitter', 1.1).prompt();
 
 // Authenticate user via the console.
 rem.console(tw, function (err, user) {

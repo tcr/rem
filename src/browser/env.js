@@ -14,6 +14,8 @@ env.inherits = function (ctor, superCtor) {
 
 // EventEmitter
 
+env.EventEmitter = EventEmitter;
+
 function EventEmitter () { }
 
 EventEmitter.prototype.listeners = function (type) {
@@ -26,6 +28,10 @@ EventEmitter.prototype.on = EventEmitter.prototype.addListener = function (type,
   }
   this.emit("newListener", type, f);
   return this;
+};
+
+EventEmitter.prototype.once = function (type, f) {
+  this.on(type, function g () { f.apply(this, arguments); this.removeListener(type, g) });
 };
 
 EventEmitter.prototype.removeListener = function (type, f) {
@@ -53,9 +59,9 @@ EventEmitter.prototype.setMaxListeners = function (maxListeners) {
   this._maxListeners = maxListeners;
 };
 
-env.EventEmitter = EventEmitter;
-
 // Streams
+
+env.Stream = Stream;
 
 env.inherits(Stream, EventEmitter);
 
@@ -324,7 +330,9 @@ env.concatList = function (obj) {
 
 // Next Tick.
 
-env.nextTick = setTimeout;
+env.nextTick = function (f) {
+  setTimeout(f, 0);
+};
 
 // Prompt strings.
 
@@ -380,11 +388,11 @@ env.oncreate = function (api) {
       req.url.query[api.manifest.jsonp] = JSONP.getNextCallback();
       next();
     });
-    api.send = function (req, next) {
+    api.send = function (req, stream, next) {
       var url = String(req.url);
       JSONP.get(url, null, false, function (json) {
         // Now fake a whole request.
-        var res = new EventEmitter();
+        var res = new env.Stream();
         res.url = url;
         res.statusText = '';
         res.statusCode = 200; // Not like we'd have any idea.
@@ -392,6 +400,7 @@ env.oncreate = function (api) {
         res.emit('data', JSON.stringify(json));
         res.emit('end');
       });
+      return new env.Stream();
     };
   }
 };

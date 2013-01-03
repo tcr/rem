@@ -80,7 +80,7 @@ var OAuth1API = (function (_super) {
     // TODO with options
   };
 
-  OAuth1API.prototype.send = function (req, next) {
+  OAuth1API.prototype.send = function (req, stream, next) {
     // Create params list from object.
     var list = [];
     for (var key in req.query) {
@@ -90,11 +90,12 @@ var OAuth1API = (function (_super) {
     sendOAuthRequest(this, {
       url: url
     }, list, function (data) {
-      var stream = new rem.env.EventEmitter();
-      next(null, stream);
-      stream.emit('data', JSON.stringify(data));
-      stream.emit('end');
+      var resstream = new rem.env.Stream();
+      next(null, resstream);
+      resstream.emit('data', JSON.stringify(data));
+      resstream.emit('end');
     });
+    return new rem.env.Stream();
   };
 
   return OAuth1API;

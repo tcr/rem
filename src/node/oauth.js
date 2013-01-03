@@ -669,7 +669,7 @@ rem.promptOAuth = function (/* api, [params,] callback */) {
     app
       .use(connect.cookieParser())
       .use(connect.cookieSession({
-        secret: Math.random()
+        secret: String(Math.random())
       }));
 
     // OAuth callback.

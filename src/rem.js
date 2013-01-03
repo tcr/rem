@@ -296,7 +296,7 @@ var Route = (function () {
 
 env.inherits(QueueStream, env.Stream);
 
-/** @construtor */
+/** @constructor */
 function QueueStream () {
   this._buffer = [];
   this.readable = this.writable = this.paused = true;
@@ -347,7 +347,7 @@ QueueStream.prototype.toBuffer = function () {
 
 env.inherits(CrossStream, env.EventEmitter);
 
-/** @construtor */
+/** @constructor */
 function CrossStream () {
   this.input = new QueueStream(); this.writable = true;
   this.output = new QueueStream(); this.readable = true;

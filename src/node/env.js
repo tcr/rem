@@ -90,7 +90,7 @@ env.sendRequest = function (opts, agent, next) {
     headers: (function () {
       var headers = {};
       for (var key in opts.headers) {
-        headers[camelCaseHeaders(key)] = opts.headers[key];
+        headers[camelCase(key)] = opts.headers[key];
       }
       return headers;
     })(),

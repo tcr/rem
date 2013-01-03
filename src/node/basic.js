@@ -98,7 +98,8 @@ var CookieSessionAuthentication = (function () {
           validateSession(err);
         } else {
           jar.getCookieString(res.url, function (err, cookies) {
-            this.loadState({cookies: cookies}, validateSession);
+            var user = this.restore({cookies: cookies});
+            validateSession(null, user);
           }.bind(this))
         }
       }.bind(this));
@@ -119,10 +120,10 @@ var CookieSessionAuthentication = (function () {
     }
   };
 
-  CookieSessionAuthentication.prototype.loadState = function (data, cb) {
+  CookieSessionAuthentication.prototype.restore = function (data) {
     var options = clone(this.api.options);
     options.cookies = data.cookies;
-    return cb(null, callable(new CookieSessionAPI(this.api.manifest, options)));
+    return callable(new CookieSessionAPI(this.api.manifest, options));
   };
 
   return CookieSessionAuthentication;

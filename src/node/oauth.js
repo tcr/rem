@@ -92,40 +92,44 @@ var OAuth1API = (function (_super) {
       });
   }
 
-  OAuth1API.prototype.send = function (req, next) {
-    // OAuth request.
-    var args = [rem.env.url.format(req.url), this.options.oauthAccessToken, this.options.oauthAccessSecret];
-    var passDirectly = false;
-    if (req.method === 'PUT' || req.method === 'POST' || req.method == 'PATCH') {
-      // Signatures need to be calculated from forms; let node-oauth do that
-      if (req.headers['content-type'] === 'application/x-www-form-urlencoded') {
-        args.push(querystring.parse(String(req.body)));
-      } else if (rem.env.isList(req.body)) {
-        // node-oauth doesn't support binary uploads. Horrible hacks ahoy.
-        passDirectly = true;
-        if (!Buffer._byteLength) {
-          Buffer._byteLength = Buffer.byteLength;
-        }
-        Buffer.byteLength = function (arg) {
-          return arg === req.body ? req.body.length : Buffer._byteLength(arg);
-        };
-      } else {
-        args.push(String(req.body), req.headers['content-type']);
-      }
-    }
+  OAuth1API.prototype.send = function (req, stream, next) {
+    stream.on('end', function () {
+      req.body = stream.toBuffer();
 
-    // TODO support close early code from https://github.com/ciaranj/node-oauth/blob/master/lib/oauth.js#L349
-    // Buffers need to be passed directly to code, we let node-oauth handle strings otherwise.
-    if (passDirectly) {
-      var oauthreq = this.oauth._performSecureRequest( this.options.oauthAccessToken, this.options.oauthAccessSecret, req.method, rem.env.url.format(req.url), null, req.body, req.headers['content-type']);
-    } else {
-      var oauthreq = this.oauth[req.method.toLowerCase()].apply(this.oauth, args)
-    }
-    oauthreq.on('response', function (res) {
-      next(null, res);
-    }).on('error', function (err) {
-      next(err, null);
-    }).end();
+      // OAuth request.
+      var args = [String(req.url), this.options.oauthAccessToken, this.options.oauthAccessSecret];
+      var passDirectly = false;
+      if (req.method === 'PUT' || req.method === 'POST' || req.method == 'PATCH') {
+        // Signatures need to be calculated from forms; let node-oauth do that
+        if (req.headers['content-type'] === 'application/x-www-form-urlencoded') {
+          args.push(querystring.parse(String(req.body)));
+        } else if (rem.env.isList(req.body)) {
+          // node-oauth doesn't support binary uploads. Horrible hacks ahoy.
+          passDirectly = true;
+          if (!Buffer._byteLength) {
+            Buffer._byteLength = Buffer.byteLength;
+          }
+          Buffer.byteLength = function (arg) {
+            return arg === req.body ? req.body.length : Buffer._byteLength(arg);
+          };
+        } else {
+          args.push(String(req.body), req.headers['content-type']);
+        }
+      }
+
+      // TODO support close early code from https://github.com/ciaranj/node-oauth/blob/master/lib/oauth.js#L349
+      // Buffers need to be passed directly to code, we let node-oauth handle strings otherwise.
+      if (passDirectly) {
+        var oauthreq = this.oauth._performSecureRequest( this.options.oauthAccessToken, this.options.oauthAccessSecret, req.method, String(req.url), null, req.body, req.headers['content-type']);
+      } else {
+        var oauthreq = this.oauth[req.method.toLowerCase()].apply(this.oauth, args)
+      }
+      oauthreq.on('response', function (res) {
+        next(null, res);
+      }).on('error', function (err) {
+        next(err, null);
+      }).end();
+    });
   };
 
   OAuth1API.prototype.saveState = function (next) {
@@ -199,7 +203,7 @@ var OAuth1Authentication = (function () {
         if (this.oauthRedirect) {
           authurl.query.oauth_callback = this.oauthRedirect;
         }
-        next(rem.env.url.format(authurl), oauthRequestToken, oauthRequestSecret, results);
+        next(String(authurl), oauthRequestToken, oauthRequestSecret, results);
       }
     }.bind(this));
   };
@@ -371,50 +375,53 @@ var OAuth2API = (function (_super) {
     this.oauth = new nodeoauth.OAuth2(this.options.key, this.options.secret, this.config.base);
   }
 
-  OAuth2API.prototype.send = function (req, next) {
-    // OAuth request.
-    var args = [rem.env.url.format(req.url), this.options.oauthAccessToken];
-    if (req.method === 'PUT' || req.method === 'POST' || req.method == 'PATCH') {
-      args.push(req.body, req.headers['content-type']);
-    }
+  OAuth2API.prototype.send = function (req, stream, next) {
+    stream.on('end', function () {
+      req.body = stream.toBuffer();
 
-    if (rem.env.isList(req.body)) {
-      // node-oauth doesn't support binary uploads. Horrible hacks ahoy.
-      if (!Buffer._byteLength) {
-        Buffer._byteLength = Buffer.byteLength;
-      }
-      Buffer.byteLength = function (arg) {
-        return arg === req.body ? req.body.length : Buffer._byteLength(arg);
-      };
-    }
-
-    // TODO node-oauth OAuth2 support doesn't let you return streams.
-    // Fix this sometime when I have the energy.
-    this.oauth[req.method.toLowerCase()].apply(this.oauth, args.concat([function (err, data) {
-      var stream = new (require('stream')).Stream();
-      stream.url = rem.env.url.format(req.url);
-      stream.headers = {};
-
-      // node-oauth will send a status code in the error object.
-      if (err && typeof err == 'object' && err.statusCode) {
-        stream.statusCode = err.statusCode;
-        next(null, stream);
-      } else if (typeof err != 'object') {
-        // Assuming a client-side error.
-        next(err);
-      } else {
-        // Assuming a 200 status code.
-        stream.statusCode = 200;
-        next(null, stream);
+      // OAuth request.
+      var args = [String(req.url), this.options.oauthAccessToken];
+      if (req.method === 'PUT' || req.method === 'POST' || req.method == 'PATCH') {
+        args.push(req.body, req.headers['content-type']);
       }
 
-      // Error objects with node-oauth bundle the content inside.
-      if (err && typeof err == 'object') {
-        data = err.data;
+      if (rem.env.isList(req.body)) {
+        // node-oauth doesn't support binary uploads. Horrible hacks ahoy.
+        if (!Buffer._byteLength) {
+          Buffer._byteLength = Buffer.byteLength;
+        }
+        Buffer.byteLength = function (arg) {
+          return arg === req.body ? req.body.length : Buffer._byteLength(arg);
+        };
       }
-      stream.emit('data', data);
-      stream.emit('end');
-    }]));
+
+      // TODO node-oauth OAuth2 support doesn't let you return streams.
+      this.oauth[req.method.toLowerCase()].apply(this.oauth, args.concat([function (err, data) {
+        var stream = new (require('stream')).Stream();
+        stream.url = String(req.url);
+        stream.headers = {};
+
+        // node-oauth will send a status code in the error object.
+        if (err && typeof err == 'object' && err.statusCode) {
+          stream.statusCode = err.statusCode;
+          next(null, stream);
+        } else if (typeof err != 'object') {
+          // Assuming a client-side error.
+          next(err);
+        } else {
+          // Assuming a 200 status code.
+          stream.statusCode = 200;
+          next(null, stream);
+        }
+
+        // Error objects with node-oauth bundle the content inside.
+        if (err && typeof err == 'object') {
+          data = err.data;
+        }
+        stream.emit('data', data);
+        stream.emit('end');
+      }]));
+    });
   };
 
   OAuth2API.prototype.validate = function (next) {

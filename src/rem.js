@@ -204,6 +204,9 @@ rem.parsers = {
 
   json: function (res, next) {
     rem.parsers.text(res, function (data) {
+      if (!data.length) {
+        return next(null);
+      }
       try {
         data = JSON.parse(String(data));
       } catch (e) {
@@ -216,6 +219,9 @@ rem.parsers = {
 
   xml: function (res, next) {
     rem.parsers.text(res, function (data) {
+      if (!data.length) {
+        return next(null);
+      }
       try {
         env.parseXML(data, next);
       } catch (e) {

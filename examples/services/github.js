@@ -40,7 +40,13 @@ rem.connect('github.com', 3.0).prompt({
             }, function (err, json) {
               if (err) return console.error('Error patching gist:', err);
 
-              console.log('Created', json.html_url);
+              console.log('Created', json.html_url, '...');
+
+              user('gists', json.id).del(function (err, json) {
+                if (err) return console.error('Error deleting gist:', err);
+
+                console.log('Deleted gist. Response should be null:', json);
+              })
             });
 
           });

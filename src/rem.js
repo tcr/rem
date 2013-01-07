@@ -232,6 +232,8 @@ rem.parsers = {
  * protocol://auth@hostname:port/pathname?query#hash
  */
 
+rem.URL = URL;
+
 /** @constructor */
 function URL (str) {
   this.protocol = undefined;
@@ -277,6 +279,8 @@ URL.prototype.parse = function (str) {
 /**
  * ClientRequest functions
  */
+
+rem.ClientRequest = ClientRequest;
 
 /** @constructor */
 function ClientRequest () {
@@ -331,8 +335,8 @@ ClientRequest.prototype.awaitingStream = function () {
 
 var Route = (function () {
 
-  function Route (req, defaultBodyMime, callback) {
-    this.req = req;
+  function Route (url, defaultBodyMime, callback) {
+    this.url = url;
     this.defaultBodyMime = defaultBodyMime || 'json';
     this.callback = callback;
   }
@@ -342,9 +346,11 @@ var Route = (function () {
     Route.prototype[key] = function (query, next) {
       if (typeof query == 'function') next = query, query = null;
 
-      this.req.method = method;
-      augment(this.req.url.query, query || {});
-      return this.callback(next);
+      var req = new ClientRequest();
+      req.url.augment(this.url);
+      req.method = method;
+      augment(req.url.query, query || {});
+      return this.callback(req, next);
     };
   });
 
@@ -359,16 +365,20 @@ var Route = (function () {
       if (args.length == 2) mime = args.shift();
       body = args.shift();
 
+      var req = new ClientRequest();
+      req.url.augment(this.url);
+      req.method = method;
+
       // We default to "body" for ambiguous string arguments.
       // If we receive a pipe, we later interpret argument as MIME.
-      this.req._explicitMime = mime != null;
+      req._explicitMime = mime != null;
 
-      this.req.method = method;
-      augment(this.req.url.query, query || {});
+      req.method = method;
+      augment(req.url.query, query || {});
       if (body) {
-        this.req.setBody(mime || this.defaultBodyMime, body)
+        req.setBody(mime || this.defaultBodyMime, body)
       }
-      return this.callback(next);
+      return this.callback(req, next);
     };
   });
 
@@ -426,9 +436,7 @@ var Client = (function () {
     url = new URL(url);
     augment(url.query, query);
 
-    var req = new ClientRequest();
-    req.url.augment(url);
-    return new Route(req, this.options.uploadFormat, function (next) {
+    return new Route(url, this.options.uploadFormat, function (req, next) {
       var stream = new CrossStream();
 
       // Disambiguate between MIME type and string body in route invocation.
@@ -515,7 +523,7 @@ var Client = (function () {
       if (fn) {
         fn();
       }
-    }, 1000 / rate)
+    }, Math.floor(1000 / rate))
 
     // Replace send function.
     if (!this._send) {

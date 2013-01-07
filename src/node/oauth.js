@@ -208,7 +208,7 @@ var OAuth1Authentication = (function () {
       if (err) {
         console.error("Error requesting OAuth token: " + JSON.stringify(err));
       } else {
-        var authurl = rem.env.url.parse(this.config.authorizeEndpoint);
+        var authurl = new rem.URL(this.config.authorizeEndpoint);
         authurl.query.oauth_token = oauthRequestToken;
         if (this.oauthRedirect) {
           authurl.query.oauth_callback = this.oauthRedirect;
@@ -229,7 +229,7 @@ var OAuth1Authentication = (function () {
       throw new Error('Out-of-band OAuth for this API requires a verification code.');
     }
     if (!this.oob) {
-      verifier = rem.env.url.parse(verifier).query.oauth_verifier;
+      verifier = new rem.URL(verifier).query.oauth_verifier;
     }
 
     var oauth = this;
@@ -288,11 +288,11 @@ var OAuth1Authentication = (function () {
   };
 
   OAuth1Authentication.prototype.middleware = function (callback) {
-    var pathname = rem.env.url.parse(this.oauthRedirect).pathname;
+    var pathname = new rem.URL(this.oauthRedirect).pathname;
 
     var auth = this;
     return function (req, res, next) {
-      var url = rem.env.url.parse(req.url);
+      var url = new rem.URL(req.url);
       if (url.pathname === pathname) {
         if (!auth.oauth) {
           res.writeHead(302, {
@@ -512,7 +512,7 @@ var OAuth2Authentication = (function () {
       _this = this;
     
     if (!this.oob) {
-      verifier = rem.env.url.parse(verifier).query.code;
+      verifier = new rem.URL(verifier).query.code;
     }
     return this.oauth.getOAuthAccessToken(verifier, {
       redirect_uri: this.oauthRedirect,
@@ -565,11 +565,11 @@ var OAuth2Authentication = (function () {
   };
 
   OAuth2Authentication.prototype.middleware = function (callback) {
-    var pathname = rem.env.url.parse(this.oauthRedirect).pathname;
+    var pathname = new rem.URL(this.oauthRedirect).pathname;
 
     var auth = this;
     return function (req, res, next) {
-      var url = rem.env.url.parse(req.url);
+      var url = new rem.URL(req.url);
       if (url.pathname === pathname) {
         if (!auth.oauth) {
           res.writeHead(302, {
@@ -698,7 +698,7 @@ rem.promptOAuth = function (/* api, [params,] callback */) {
       if (req.url == '/') {
         oauth.startSession(req, params || {}, function (url) {
           res.writeHead(302, {
-            'Location': url
+            'Location': String(url)
           });
           res.end();
         });

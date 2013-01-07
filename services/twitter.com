@@ -33,6 +33,7 @@
     "jsonp": "callback"
   },
   "1.1": {
+    "id": "twitter.com",
     "name": "Twitter",
     "docs": "https://dev.twitter.com/docs",
     "control": "https://dev.twitter.com/apps",

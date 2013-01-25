@@ -449,6 +449,7 @@ var Client = (function () {
       function disambiguateInvocation() {
         if (req.body && !req._explicitMime) {
           req.setHeader('Content-Type', req.body);
+          req.removeHeader('Content-Length');
           req.body = null;
         }
       }

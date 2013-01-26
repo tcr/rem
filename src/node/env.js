@@ -228,15 +228,15 @@ env.promptConfiguration = function (rem, api, callback) {
       api.manifest.configuration.forEach(function (key) {
         api.options[key] = config[key];
       });
-      console.log(('Loaded API configuration from ' + env.config.stores.file.file).yellow);
+      console.error(('Loaded API configuration from ' + env.config.stores.file.file).yellow);
       return callback(null, api);
     }
   }
 
   // Prompt API keys.
-  console.log(('Configuring the API ' + api.manifest.id + ' on first use.').yellow);
+  console.error(('Configuring the API ' + api.manifest.id + ' on first use.').yellow);
   if (api.manifest.control) {
-    console.log('Register and manage your credentials here:'.yellow, api.manifest.control);
+    console.error('Register and manage your credentials here:'.yellow, api.manifest.control);
   }
 
   // Configure, then request key and optionally a secret.
@@ -282,8 +282,8 @@ env.promptConfiguration = function (rem, api, callback) {
         env.config.set(api.manifest.id + ':configuration:' + key, api.options[key]);
       });
       env.config.save(function (err, json) {
-        console.log(('Your credentials are saved to the configuration file ' + env.config.stores.file.file).yellow);
-        console.log(('Use "rem ' + api.manifest.id + ' config [clear]" to manage these values.\n').yellow);
+        console.error(('Your credentials are saved to the configuration file ' + env.config.stores.file.file).yellow);
+        console.error(('Use "rem ' + api.manifest.id + ' config [clear]" to manage these values.\n').yellow);
         callback(null, api);
       });
     } else {

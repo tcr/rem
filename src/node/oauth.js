@@ -317,19 +317,17 @@ var OAuth1Authentication = (function () {
 
   // Convenience functions.
 
-  OAuth1Authentication.login = function () {
+  OAuth1Authentication.prototype.login = function (opts) {
     return function (req, res) {
-      this.startSession(req, function (url) {
+      this.startSession(req, opts || {}, function (url) {
         res.redirect(url);
       });
     }.bind(this);
   };
 
-  OAuth1Authentication.logout = function (retroute) {
+  OAuth1Authentication.prototype.logout = function (callback) {
     return function (req, res) {
-      oauth.clearSession(req, function (url) {
-        res.redirect(retroute || '/');
-      });
+      oauth.clearSession(req, callback);
     }.bind(this);
   };
 
@@ -616,19 +614,17 @@ var OAuth2Authentication = (function () {
 
   // Convenience functions.
 
-  OAuth2Authentication.login = function () {
+  OAuth1Authentication.prototype.login = function (opts) {
     return function (req, res) {
-      this.startSession(req, function (url) {
+      this.startSession(req, opts || {}, function (url) {
         res.redirect(url);
       });
     }.bind(this);
   };
 
-  OAuth2Authentication.logout = function (retroute) {
+  OAuth1Authentication.prototype.logout = function (callback) {
     return function (req, res) {
-      oauth.clearSession(req, function (url) {
-        res.redirect(retroute || '/');
-      });
+      oauth.clearSession(req, callback);
     }.bind(this);
   };
 

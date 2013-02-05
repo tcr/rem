@@ -315,6 +315,24 @@ var OAuth1Authentication = (function () {
     };
   };
 
+  // Convenience functions.
+
+  OAuth1Authentication.login = function () {
+    return function (req, res) {
+      this.startSession(req, function (url) {
+        res.redirect(url);
+      });
+    }.bind(this);
+  };
+
+  OAuth1Authentication.logout = function (retroute) {
+    return function (req, res) {
+      oauth.clearSession(req, function (url) {
+        res.redirect(retroute || '/');
+      });
+    }.bind(this);
+  };
+
   return OAuth1Authentication;
 
 })();
@@ -383,6 +401,13 @@ var OAuth2API = (function (_super) {
     rem.ManifestClient.apply(this, arguments);
     this.config = this.manifest.auth;
     this.oauth = new nodeoauth.OAuth2(this.options.key, this.options.secret, this.config.base);
+
+    // Convenience functions.
+    this.login = function (req, res) {
+      this.startSession(req, function (url) {
+        res.redirect(url);
+      });
+    }.bind(this);
   }
 
   OAuth2API.prototype.send = function (req, stream, next) {
@@ -587,6 +612,24 @@ var OAuth2Authentication = (function () {
         next();
       }
     };
+  };
+
+  // Convenience functions.
+
+  OAuth2Authentication.login = function () {
+    return function (req, res) {
+      this.startSession(req, function (url) {
+        res.redirect(url);
+      });
+    }.bind(this);
+  };
+
+  OAuth2Authentication.logout = function (retroute) {
+    return function (req, res) {
+      oauth.clearSession(req, function (url) {
+        res.redirect(retroute || '/');
+      });
+    }.bind(this);
   };
 
   return OAuth2Authentication;

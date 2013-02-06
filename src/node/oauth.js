@@ -327,7 +327,7 @@ var OAuth1Authentication = (function () {
 
   OAuth1Authentication.prototype.logout = function (callback) {
     return function (req, res) {
-      this.clearSession(req, callback);
+      this.clearSession(req, callback.bind(this, req, res, next));
     }.bind(this);
   };
 
@@ -623,8 +623,8 @@ var OAuth2Authentication = (function () {
   };
 
   OAuth2Authentication.prototype.logout = function (callback) {
-    return function (req, res) {
-      this.clearSession(req, callback);
+    return function (req, res, next) {
+      this.clearSession(req, callback.bind(this, req, res, next));
     }.bind(this);
   };
 

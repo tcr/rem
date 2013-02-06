@@ -327,7 +327,7 @@ var OAuth1Authentication = (function () {
 
   OAuth1Authentication.prototype.logout = function (callback) {
     return function (req, res) {
-      oauth.clearSession(req, callback);
+      this.clearSession(req, callback);
     }.bind(this);
   };
 
@@ -614,7 +614,7 @@ var OAuth2Authentication = (function () {
 
   // Convenience functions.
 
-  OAuth1Authentication.prototype.login = function (opts) {
+  OAuth2Authentication.prototype.login = function (opts) {
     return function (req, res) {
       this.startSession(req, opts || {}, function (url) {
         res.redirect(url);
@@ -622,9 +622,9 @@ var OAuth2Authentication = (function () {
     }.bind(this);
   };
 
-  OAuth1Authentication.prototype.logout = function (callback) {
+  OAuth2Authentication.prototype.logout = function (callback) {
     return function (req, res) {
-      oauth.clearSession(req, callback);
+      this.clearSession(req, callback);
     }.bind(this);
   };
 

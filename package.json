@@ -1,6 +1,6 @@
 {
   "name": "rem",
-  "description": "REST made easy. Extensible, and includes support for many popular APIs.",
+  "description": "An HTTP Client with middleware, with built-in support for major web services.",
   "version": "0.6.2-1",
   "author": "Tim Cameron Ryan <tim@timryan.org>",
   "contributors": [],

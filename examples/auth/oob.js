@@ -1,26 +1,25 @@
-var rem = require('rem');
-var fs = require('fs');
-var read = require('read');
+// npm install rem read
+var rem = require('rem')
+  , fs = require('fs')
+  , read = require('read');
 
-var dbox = rem.connect('dropbox.com', 1.0)
-var oauth = rem.oauth(dbox);
+var dbox = rem.connect('dropbox.com', '*')
+  , oauth = rem.oauth(dbox);
 
-dbox.promptConfiguration(function () {
+function oobPinLogin () {
   oauth.start(function(url, token, secret) {
     console.log("Visit:", url);
-    return read({
-      prompt: "Hit enter when finished..."
-    }, function() {
-      return oauth.complete(token, secret, authorized);
+    read({
+      prompt: "Hit enter when finished... "
+    }, function () {
+      // We don't need to specify a verifier for oob requests.
+      oauth.complete(token, secret, authorizedRequests);
     });
   });
-});
+}
 
-function authorized (err, user) {
-  if (err) {
-    console.log(err);
-    return;
-  }
+function authorizedRequests (err, user) {
+  if (err) return console.log(err);
 
   // Create a file.
   user('files_put/sandbox/rem.txt').put(
@@ -38,3 +37,6 @@ function authorized (err, user) {
     });
   });
 };
+
+// Prompt for API keys and begin login.
+dbox.promptConfiguration(oobPinLogin)

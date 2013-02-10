@@ -1,26 +1,24 @@
-var rem = require('rem');
-var fs = require('fs');
-var read = require('read');
+// npm install rem read
+var rem = require('rem')
+  , fs = require('fs')
+  , read = require('read');
 
-var tw = rem.connect('twitter.com', 1.0);
-var oauth = rem.oauth(tw);
+var tw = rem.connect('twitter.com', 1.0)
+  , oauth = rem.oauth(tw);
 
-tw.promptConfiguration(function () {
+function oobPinLogin () {
   oauth.start(function(url, token, secret) {
     console.log("Visit:", url);
     read({
       prompt: "Type in the verification code: "
     }, function(err, verifier) {
-      oauth.complete(verifier, token, secret, authorized);
+      oauth.complete(verifier, token, secret, authorizedRequests);
     });
   });
-});
+}
 
-function authorized (err, user) {
-  if (err) {
-    console.error(err);
-    return;
-  }
+function authorizedRequests (err, user) {
+  if (err) return console.log(err);
 
   console.log('Latest tweets from your timeline:');
   user('statuses/home_timeline').get(function(err, json) {
@@ -39,3 +37,6 @@ function authorized (err, user) {
     });
   });
 }
+
+// Prompt for API keys and begin login.
+tw.promptConfiguration(oobPinLogin)

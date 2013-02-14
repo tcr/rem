@@ -1,8 +1,12 @@
-/**
- * Rem. An HTTP Client with middleware, with built-in support for major web services.
- * @author Tim Cameron Ryan
- * @license MIT
- */
+/*
+
+Rem: REST easy.
+A flexible HTTP library for using the web like an API.
+
+Reference:
+http://roy.gbiv.com/untangled/2008/rest-apis-must-be-hypertext-driven
+
+*/
 
 /**
  * Utilities

@@ -1,7 +1,5 @@
-// npm install rem read express
+// npm install rem express
 var rem = require('rem')
-  , fs = require('fs')
-  , read = require('read')
   , express = require('express');
 
 // Create the application. Authentication relies on having session capability.

@@ -1,7 +1,7 @@
 {
   "name": "rem",
   "description": "An HTTP Client with middleware, with built-in support for major web services.",
-  "version": "0.6.3",
+  "version": "0.6.3-1",
   "author": "Tim Cameron Ryan <tim@timryan.org>",
   "contributors": [],
   "dependencies": {
@@ -28,6 +28,6 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git://github.com/timcameronryan/rem-node.git"
+    "url": "git://github.com/tcr/rem-js.git"
   }
 }

@@ -6,10 +6,12 @@
 		"control": "https://developer.echonest.com/account/profile",
 
 		"params": {
-			"format": "json"
+			"format": "jsonp"
 		},
 		"configParams": {
 			"api_key": "key"
-		}
+		},
+
+		"jsonp": "callback"
 	}
 }

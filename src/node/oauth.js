@@ -399,6 +399,9 @@ var OAuth2API = (function (_super) {
     rem.ManifestClient.apply(this, arguments);
     this.config = this.manifest.auth;
     this.oauth = new nodeoauth.OAuth2(this.options.key, this.options.secret, this.config.base);
+    if (this.config.accessTokenParam) {
+      this.oauth._accessTokenName = this.config.accessTokenParam;
+    }
 
     // Convenience functions.
     this.login = function (req, res) {

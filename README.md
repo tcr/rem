@@ -25,10 +25,11 @@ rem.connect('github.com').prompt(function (err, user) {
 
 ## Documentation
 
-* Check out [the Wiki](https://github.com/tcr/rem-js/wiki) for API documentation.
-* See [examples for popular REST services](https://github.com/tcr/rem-js/tree/master/examples/services).
-* See [examples of using Rem to authenticate users](https://github.com/tcr/rem-js/tree/master/examples/auth) with Express, from the command line, or out-of-band login.
-* See [examples of using Rem in the browser](https://github.com/tcr/rem-js/tree/master/examples/browser).
+Look at [**the Wiki for API Documentation**](https://github.com/tcr/rem-js/wiki).
+
+* See [code for popular REST services](https://github.com/tcr/rem-js/tree/master/examples/services).
+* See [code for using Rem to authenticate users](https://github.com/tcr/rem-js/tree/master/examples/auth) with Express, from the command line, or out-of-band login.
+* See [code for using Rem in the browser](https://github.com/tcr/rem-js/tree/master/examples/browser).
 
 ## License
 

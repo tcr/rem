@@ -2,7 +2,7 @@ var rem = require('../..');
 var read = require('read');
 
 // Create Youtube API, prompting for key/secret.
-var yt = rem.connect('youtube', 2.0, {format: 'xml'}).prompt();
+var yt = rem.connect('youtube.com', 2.0, {format: 'xml'}).prompt();
 
 // Authenticate user via the console.
 rem.console(yt, function (err, user) {

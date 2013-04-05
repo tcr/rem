@@ -1,17 +1,19 @@
-var rem = require('../..');
+var rem = require('rem');
 
-// Create Google Calendar API, prompting for key/secret.
+// make sure that when you make your app in the APIs console,
+// the Client ID must be application type "Installed Application"
+// then use the client ID and client secret
+
+// Create Google Document API, prompting for key/secret.
 // Authenticate user via the console.
-rem.connect('docs.google.com', 3.0, {
-	format: 'xml'
-}).prompt(function (err, user) {
-  user('default/private/full').get(function(err, xml) {
+rem.connect('docs.google.com', 3.0).prompt(function (err, user) {
+  user('files').get(function(err, json) {
     if (err) { console.log(err); return; }
-
-    // List your documents.
-    var NS = {a: "http://www.w3.org/2005/Atom"};
-    xml.find('/a:feed/a:entry/a:title', NS).forEach(function (title) {
-      console.log('Document:', title.text());
-    })
+    // print out the documents
+    json.items.forEach(function(item) {
+      if (item.mimeType.indexOf('document') != -1) {
+        console.log('Document:', item.title);
+      }
+    });
   });
 });

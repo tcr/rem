@@ -4,13 +4,13 @@
     "name": "Google Docs",
     "control": "https://code.google.com/apis/console/",
 
-    "base": "https://docs.google.com/feeds",
+    "base": "https://www.googleapis.com/drive/v2/",
     "params": {
       "v": "3"
     },
 
     "formats": {
-      "xml": {}
+      "json": {}
     },
 
     "auth": {

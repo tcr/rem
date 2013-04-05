@@ -1,9 +1,9 @@
-var rem = require('../..');
+// npm install rem read clarinet
+var rem = require('rem');
 var read = require('read');
 
-// Create Twitter API, prompting for configuration values.
-rem.connect('twitter.com', 1.0).prompt(function (err, user) {
-
+// Create Twitter API, prompting for key/secret.
+var tw = rem.connect('twitter.com', 1.1).prompt(function(err, user){
   // Read tweets from our timeline.
   console.log('Latest tweets from your timeline:');
   user('statuses/home_timeline').get(function (err, json) {
@@ -21,3 +21,4 @@ rem.connect('twitter.com', 1.0).prompt(function (err, user) {
     });
   });
 });
+

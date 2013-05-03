@@ -225,7 +225,9 @@ rem.parsers = {
         return next(err);
       }
       try {
-        next(null, env.parseXML(data, next));
+        env.parseXML(data, function (xml) {
+          next(null, xml);
+        });
       } catch (e) {
         var err = new SyntaxError('Could not parse XML response: ' + e.message + '\n' + data);
         err.stack = e.stack;

@@ -1,11 +1,10 @@
 {
   "name": "rem",
   "description": "An HTTP Client with middleware, with built-in support for major web services.",
-  "version": "0.6.6-1",
+  "version": "0.6.7",
   "author": "Tim Cameron Ryan <tim@timryan.org>",
   "contributors": [],
   "dependencies": {
-    "oauth": "0.9.6",
     "tough-cookie": "0.9.8",
     "read": "0.1.0",
     "nconf": "0.6.0",
@@ -13,7 +12,8 @@
     "async": "~0.1.22",
     "open": "0.0.2",
     "connect": "~2.7.1",
-    "colors": "~0.6.0-1"
+    "colors": "~0.6.0-1",
+    "oauth": "~0.9.10"
   },
   "bin": "src/node/cli.js",
   "main": "./src/rem.js",

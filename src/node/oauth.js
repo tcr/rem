@@ -442,6 +442,7 @@ var OAuth2API = (function (_super) {
       }
 
       // TODO node-oauth OAuth2 support doesn't let you return streams.
+      this.oauth._customHeaders = req.headers;
       this.oauth[req.method.toLowerCase()].apply(this.oauth, args.concat([function (err, data) {
         var stream = new (require('stream')).Stream();
         stream.url = String(req.url);

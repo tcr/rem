@@ -36,7 +36,7 @@ rem.connect('github.com', 3.0).prompt({
           
             // Patch the gist.
             user('gists', json.id).patch({
-              description: "A Gist created with Rem. http://github.com/tcr/rem-js"
+              description: "A Gist created with Rem. http://github.com/tcr/rem"
             }, function (err, json) {
               if (err) return console.error('Error patching gist:', err);
 

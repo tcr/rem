@@ -208,7 +208,8 @@ env.config = require('nconf');
 try {
   env.config.file(path.join(require('osenv').home(), '.remconf'));
 } catch (e) {
-  console.error('Invalid .remconf settings, overwriting file.'.yellow);
+  // TODO report in a less obtrusive way
+  // console.error('Invalid .remconf settings, overwriting file.'.yellow);
 }
 
 env.promptConfiguration = function (rem, api, callback) {

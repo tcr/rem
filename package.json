@@ -9,14 +9,18 @@
     "read": "0.1.0",
     "nconf": "0.6.0",
     "osenv": "0.0.3",
-    "async": "~0.1.22",
     "open": "0.0.2",
     "connect": "~2.7.1",
     "colors": "~0.6.0-1",
-    "oauth": "~0.9.10"
+    "oauth": "~0.9.10",
+    "async": "~0.2.9"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
   },
   "devDependencies": {
-    "tape": "~2.3.2"
+    "tape": "~2.3.2",
+    "async": "~0.2.9"
   },
   "bin": "src/node/cli.js",
   "main": "./src/rem.js",

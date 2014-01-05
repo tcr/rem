@@ -15,6 +15,9 @@
     "colors": "~0.6.0-1",
     "oauth": "~0.9.10"
   },
+  "devDependencies": {
+    "tape": "~2.3.2"
+  },
   "bin": "src/node/cli.js",
   "main": "./src/rem.js",
   "keywords": [

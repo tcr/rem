@@ -214,7 +214,7 @@ rem.parsers = {
       } catch (e) {
         var err = new SyntaxError('Could not parse JSON response: ' + e.message + '\n' + data);
         err.stack = e.stack;
-        next(err, null);
+        return next(err, null);
       }
       next(null, json);
     });

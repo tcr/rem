@@ -624,7 +624,9 @@ var ManifestClient = (function () {
         // Update the request with base.
         // TODO check for matching base and use it.
         if (base && (req.url.protocol || req.url.hostname)) {
-          throw new Error('Full URL request does not match API base URL: ' + String(req.url));
+          if (env.formatURL({protocol: req.url.protocol, hostname: req.url.hostname}) != base.replace(/\/+$/, '')) {
+            throw new Error('Full request URL (' + String(req.url) + ') does not match API base URL (' + base + ')');
+          }
         }
         req.url.augment(new URL(base)); // Incorporate base.
         req.url.pathname = env.joinPath(req.url.pathname, pathname); // Append path.

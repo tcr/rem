@@ -1,7 +1,7 @@
 {
   "name": "rem",
   "description": "An HTTP Client with middleware, with built-in support for major web services.",
-  "version": "0.7.0-1",
+  "version": "0.7.0-2",
   "author": "Tim Cameron Ryan <tim@timryan.org>",
   "contributors": [],
   "dependencies": {

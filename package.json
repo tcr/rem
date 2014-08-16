@@ -5,15 +5,16 @@
   "author": "Tim Cameron Ryan <tim@timryan.org>",
   "contributors": [],
   "dependencies": {
-    "tough-cookie": "0.9.8",
-    "read": "0.1.0",
-    "nconf": "0.6.0",
-    "osenv": "0.0.3",
-    "open": "0.0.2",
-    "connect": "~2.7.1",
+    "async": "~0.2.9",
     "colors": "~0.6.0-1",
+    "connect": "~2.7.1",
+    "nconf": "0.6.0",
     "oauth": "~0.9.10",
-    "async": "~0.2.9"
+    "open": "0.0.2",
+    "osenv": "0.0.3",
+    "qs": "^1.2.2",
+    "read": "0.1.0",
+    "tough-cookie": "0.9.8"
   },
   "scripts": {
     "test": "tap test/*.js"

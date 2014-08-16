@@ -122,7 +122,7 @@ env.sendRequest = function (opts, agent, next) {
 
 // Query
 
-env.qs = require('querystring');
+env.qs = require('qs');
 
 // Path
 

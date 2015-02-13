@@ -11,7 +11,9 @@
     "osenv": "0.0.3",
     "async": "~0.1.22",
     "open": "0.0.2",
-    "connect": "~2.7.1",
+    "connect": "~3.3.4",
+    "cookie-parser": "~1.3.3",
+    "cookie-session": "~1.1.0",
     "colors": "~0.6.0-1",
     "oauth": "~0.9.10"
   },

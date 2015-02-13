@@ -5,6 +5,8 @@ var path = require('path');
 var async = require('async');
 var read = require('read');
 var connect = require('connect');
+var cookieParser = require('cookie-parser');
+var cookieSession = require('cookie-session');
 var nconf = require('nconf');
 var osenv = require('osenv');
 var querystring = require('querystring');
@@ -710,8 +712,8 @@ rem.promptOAuth = function (/* api, [params,] callback */) {
     var app = connect();
 
     app
-      .use(connect.cookieParser())
-      .use(connect.cookieSession({
+      .use(cookieParser())
+      .use(cookieSession({
         secret: String(Math.random())
       }));
 
